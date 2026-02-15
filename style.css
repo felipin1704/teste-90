@@ -1022,3 +1022,46 @@ body.mode-auth #workarea{ display:none !important; }
 
 /* Esconder bottom-nav via classe */
 .bottom-nav.is-hidden{ display:none !important; }
+/* ===== FIX: força a Home ficar igual o layout do print ===== */
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+/* Se tiver imagem/logo gigante como <img>, isso impede ela de empurrar tudo */
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Força o container da Home centralizado */
+#homeScreen.home-screen,
+.home-screen {
+  min-height: 100vh !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 22px 14px 120px !important;
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+/* Faz o card ficar grande e visível */
+.home-card {
+  width: min(520px, 92vw) !important;
+  transform: none !important;
+  margin: 0 auto !important;
+  position: relative !important;
+  z-index: 3 !important;
+}
+
+/* Se sua logo gigante estiver como background do body, isso “apaga” ela */
+body {
+  background: radial-gradient(1200px 600px at 50% -10%, #2b2f3a 0%, #0b0d11 55%, #07080b 100%) !important;
+}
+
+
