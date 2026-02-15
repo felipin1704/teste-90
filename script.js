@@ -63,11 +63,17 @@ function showAppHome(){
   mostrarHome();
 }
 
-function setAuthStatus(text, kind="") {
+ function setAuthStatus(text, kind="") {
   const el = document.getElementById("authStatus");
   if (!el) return;
   el.className = "auth-status" + (kind ? " " + kind : "");
   el.textContent = text || "";
+}
+
+function withTimeout(promise, ms=15000){
+  let t;
+  const timeout = new Promise((_, rej)=>{ t=setTimeout(()=>rej(new Error("Tempo esgotado")), ms); });
+  return Promise.race([promise, timeout]).finally(()=>clearTimeout(t));
 }
 
 async function ensureUser(){
@@ -147,6 +153,7 @@ async function persistUserData(immediate=false){
 }
 
 window.authSignup = async function(){
+  if(!supa){ setAuthStatus("Supabase não carregou (verifique o link do CDN no index.html).", "bad"); return; }
   const email = String(document.getElementById("authEmail")?.value || "").trim();
   const pass = String(document.getElementById("authPass")?.value || "");
   if (!email || !pass) {
@@ -154,13 +161,13 @@ window.authSignup = async function(){
     return;
   }
   setAuthStatus("Criando conta...", "");
-  const { data, error } = await supa.auth.signUp({
+  const { data, error } = await withTimeout(supa.auth.signUp({
     email,
     password: pass,
     options: {
       emailRedirectTo: window.location.origin
     }
-  });
+  }), 15000);
   if (error) {
     setAuthStatus(error.message || "Erro ao criar conta.", "bad");
     return;
@@ -170,6 +177,7 @@ window.authSignup = async function(){
 };
 
 window.authLogin = async function(){
+  if(!supa){ setAuthStatus("Supabase não carregou (verifique o link do CDN no index.html).", "bad"); return; }
   const email = String(document.getElementById("authEmail")?.value || "").trim();
   const pass = String(document.getElementById("authPass")?.value || "");
   if (!email || !pass) {
@@ -177,10 +185,10 @@ window.authLogin = async function(){
     return;
   }
   setAuthStatus("Entrando...", "");
-  const { data, error } = await supa.auth.signInWithPassword({
+  const { data, error } = await withTimeout(supa.auth.signInWithPassword({
     email,
     password: pass
-  });
+  }), 15000);
   if (error) {
     // quando não confirmou email, geralmente dá erro
     setAuthStatus("❌ " + (error.message || "Não foi possível entrar. Confirme seu email e tente novamente."), "bad");
