@@ -11,284 +11,6 @@ const STORAGE_DRAFT = "treino_draft_v1";
 const STORAGE_BUILDER = "treino_builder_v1";
 const STORAGE_FAVS = "treino_favs_v1";
 const STORAGE_SAVED_WORKOUTS = "treino_saved_workouts_v1";
-const STORAGE_PREFS = "treino_prefs_v1";
-// ===========================
-// TREINO AUTOMÁTICO (Objetivo / Nível / Tipo) ✅
-// - Seleciona EXERCÍCIOS diferentes (não só muda séries)
-// - Evita repetir os últimos exercícios gerados
-// - Ajusta séries/reps/descanso pelo objetivo + nível
-// ===========================
-const STORAGE_AUTO_LAST = "treino_auto_last_v1";
-const STORAGE_AUTO_ROTATION = "treino_auto_rotation_v1";
-
-// Exercícios "compostos" (mais pesados) -> prioridade em Força/Hipertrofia
-const EX_COMPOSTOS = new Set([
-  "agachamento livre",
-  "levantamento terra",
-  "leg press",
-  "supino reto",
-  "supino inclinado",
-  "remada curvada",
-  "remada baixa",
-  "puxada na frente",
-  "desenvolvimento ombro",
-  "stiff-halteres",
-  "bulgaro"
-]);
-
-function cap(str){
-  const s = String(str||"").trim();
-  if (!s) return "";
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-function labelObjetivo(goal){
-  const g = String(goal||"").toLowerCase();
-  if (g === "forca") return "Força";
-  if (g === "emagrecimento") return "Emagrecimento";
-  return "Hipertrofia";
-}
-function labelNivel(level){
-  const l = String(level||"").toLowerCase();
-  if (l === "iniciante") return "Iniciante";
-  if (l === "avancado") return "Avançado";
-  return "Intermediário";
-}
-function labelTipo(focus){
-  const f = String(focus||"").toLowerCase();
-  return (f === "superior") ? "Superior" : "Inferior";
-}
-
-function shuffle(arr){
-  const a = arr.slice();
-  for (let i=a.length-1;i>0;i--){
-    const j = Math.floor(Math.random()*(i+1));
-    [a[i],a[j]] = [a[j],a[i]];
-  }
-  return a;
-}
-function uniq(arr){
-  const set = new Set();
-  const out = [];
-  arr.forEach(x=>{
-    const k = String(x||"").trim().toLowerCase();
-    if (!k || set.has(k)) return;
-    set.add(k);
-    out.push(x);
-  });
-  return out;
-}
-
-function loadAutoRotation(){
-  try { return JSON.parse(localStorage.getItem(STORAGE_AUTO_ROTATION) || "{}"); }
-  catch { return {}; }
-}
-function saveAutoRotation(obj){
-  localStorage.setItem(STORAGE_AUTO_ROTATION, JSON.stringify(obj||{}));
-}
-function loadAutoLast(){
-  try { return JSON.parse(localStorage.getItem(STORAGE_AUTO_LAST) || "null"); }
-  catch { return null; }
-}
-function saveAutoLast(obj){
-  localStorage.setItem(STORAGE_AUTO_LAST, JSON.stringify(obj||null));
-}
-
-// Pega gif/meta pelo nome do exercício (usando a biblioteca existente)
-function getExMetaMap(){
-  const lib = montarBiblioteca();
-  const map = new Map();
-  lib.forEach(ex=>{
-    map.set(String(ex.nome||"").trim().toLowerCase(), ex);
-  });
-  return map;
-}
-
-// Escolhe quantos exercícios por nível/objetivo
-function qtdExercicios(goal, level){
-  const g = String(goal||"").toLowerCase();
-  const l = String(level||"").toLowerCase();
-  if (g === "forca"){
-    if (l === "iniciante") return 4;
-    if (l === "avancado") return 5;
-    return 5;
-  }
-  if (g === "emagrecimento"){
-    if (l === "iniciante") return 5;
-    if (l === "avancado") return 7;
-    return 6;
-  }
-  // hipertrofia
-  if (l === "iniciante") return 5;
-  if (l === "avancado") return 7;
-  return 6;
-}
-
-// Define séries/reps/descanso
-function parametrosEx(goal, level, nomeEx){
-  const g = String(goal||"").toLowerCase();
-  const l = String(level||"").toLowerCase();
-  const isComp = EX_COMPOSTOS.has(String(nomeEx||"").toLowerCase());
-
-  // defaults
-  let series = 3;
-  let repsAlvo = "8-12";
-  let descansoSeg = 75;
-
-  if (g === "forca"){
-    repsAlvo = isComp ? "3-6" : "6-8";
-    descansoSeg = isComp ? 180 : 120;
-    series = isComp ? 4 : 3;
-  } else if (g === "emagrecimento"){
-    repsAlvo = isComp ? "10-15" : "12-20";
-    descansoSeg = 45;
-    series = isComp ? 3 : 3;
-  } else { // hipertrofia
-    repsAlvo = isComp ? "6-10" : "10-15";
-    descansoSeg = isComp ? 90 : 60;
-    series = isComp ? 4 : 3;
-  }
-
-  // Ajuste por nível
-  if (l === "iniciante"){
-    // menos volume e mais controle
-    series = Math.max(2, series-1);
-    descansoSeg = Math.min(descansoSeg, g==="forca" ? 150 : 75);
-  }
-  if (l === "avancado"){
-    // um pouco mais de volume
-    series = Math.min(5, series+1);
-    // descanso mantém, mas não precisa aumentar
-  }
-
-  return { series, repsAlvo, descansoSeg };
-}
-
-// Pool por tipo e por objetivo (só com os exercícios que você já tem no app)
-function poolPorPrefs(goal, focus){
-  const g = String(goal||"").toLowerCase();
-  const f = String(focus||"").toLowerCase();
-
-  const superiorBase = [
-    "Supino reto",
-    "Supino inclinado",
-    "Puxada na frente",
-    "Remada baixa",
-    "Remada curvada",
-    "Desenvolvimento ombro",
-    "Elevação lateral",
-    "Rosca direta",
-    "Tríceps corda",
-    "Tríceps testa",
-  ];
-
-  const inferiorBase = [
-    "Agachamento livre",
-    "Leg press",
-    "Levantamento terra",
-    "stiff-halteres",
-    "bulgaro",
-    "Cadeira extensora",
-    "Mesa flexora",
-    "cadeira-abdutora",
-    "Panturrilha em pé",
-    "Panturrilha sentado",
-  ];
-
-  let pool = (f === "superior") ? superiorBase : inferiorBase;
-
-  // Ajuste do pool por objetivo (prioriza compostos em força e hipertrofia)
-  if (g === "forca"){
-    pool = (f === "superior")
-      ? ["Supino reto","Remada curvada","Puxada na frente","Desenvolvimento ombro","Supino inclinado","Remada baixa","Tríceps testa","Rosca direta"]
-      : ["Agachamento livre","Levantamento terra","Leg press","stiff-halteres","bulgaro","Cadeira extensora","Mesa flexora","Panturrilha em pé"];
-  } else if (g === "emagrecimento"){
-    pool = (f === "superior")
-      ? ["Puxada na frente","Remada baixa","Supino inclinado","Elevação lateral","Rosca direta","Tríceps corda","Supino reto","Remada curvada"]
-      : ["Leg press","bulgaro","Mesa flexora","Cadeira extensora","cadeira-abdutora","Panturrilha em pé","Agachamento livre","stiff-halteres"];
-  } else {
-    // hipertrofia (mix)
-    pool = (f === "superior")
-      ? ["Supino inclinado","Puxada na frente","Remada baixa","Desenvolvimento ombro","Elevação lateral","Rosca direta","Tríceps corda","Supino reto","Remada curvada","Tríceps testa"]
-      : ["Agachamento livre","Leg press","Cadeira extensora","Mesa flexora","bulgaro","stiff-halteres","cadeira-abdutora","Panturrilha em pé","Panturrilha sentado","Levantamento terra"];
-  }
-
-  return uniq(pool);
-}
-
-// Evita repetição: não usar exercícios que apareceram nas últimas gerações para aquela combinação
-function escolherExerciciosSemRepetir(goal, level, focus){
-  const key = `${String(goal||"").toLowerCase()}|${String(level||"").toLowerCase()}|${String(focus||"").toLowerCase()}`;
-  const rot = loadAutoRotation();
-  const recentes = (rot[key] || []).map(x=>String(x).toLowerCase());
-
-  const pool = poolPorPrefs(goal, focus);
-  const qtd = Math.min(qtdExercicios(goal, level), pool.length);
-
-  // 1) tenta pegar do pool excluindo recentes
-  const semRecentes = pool.filter(n => !recentes.includes(String(n).toLowerCase()));
-  let escolhidos = shuffle(semRecentes).slice(0, qtd);
-
-  // 2) se não deu, completa com o pool completo embaralhado
-  if (escolhidos.length < qtd){
-    const faltam = qtd - escolhidos.length;
-    const resto = shuffle(pool.filter(n => !escolhidos.map(x=>String(x).toLowerCase()).includes(String(n).toLowerCase())));
-    escolhidos = escolhidos.concat(resto.slice(0, faltam));
-  }
-
-  // Atualiza rotação (guarda os últimos 12 nomes)
-  rot[key] = (escolhidos.map(x=>String(x))).concat(rot[key] || []).slice(0, 12);
-  saveAutoRotation(rot);
-
-  return escolhidos;
-}
-
-// Gera um treino "Auto" e injeta no TREINOS
-function gerarTreinoAutomatico(prefs){
-  const goal = prefs.goal || "hipertrofia";
-  const level = prefs.level || "intermediario";
-  const focus = prefs.focus || "inferior";
-
-  const nomeTreino = `Auto • ${labelTipo(focus)} • ${labelObjetivo(goal)} • ${labelNivel(level)}`;
-
-  const metaMap = getExMetaMap();
-  const nomes = escolherExerciciosSemRepetir(goal, level, focus);
-
-  const exercicios = nomes.map(nomeEx => {
-    const meta = metaMap.get(String(nomeEx).trim().toLowerCase());
-    const p = parametrosEx(goal, level, nomeEx);
-    const gif = meta?.gif || "";
-    return mkEx(meta?.nome || nomeEx, p.series, p.repsAlvo, p.descansoSeg, gif);
-  });
-
-  TREINOS[nomeTreino] = exercicios;
-
-  // guarda para reconstruir após refresh
-  saveAutoLast({
-    nomeTreino,
-    data: hojeISO(),
-    prefs: { goal, level, focus },
-    exercicios: exercicios.map(e => ({
-      nome: e.nome,
-      series: e.series,
-      repsAlvo: e.repsAlvo,
-      descansoSeg: e.descansoSeg,
-      gif: e.gif || ""
-    }))
-  });
-
-  return nomeTreino;
-}
-
-// Recria o último treino automático ao abrir o app (evita erro se a pessoa voltar nele)
-function restaurarUltimoTreinoAutomatico(){
-  const last = loadAutoLast();
-  if (!last || !last.nomeTreino || !Array.isArray(last.exercicios)) return;
-  if (TREINOS[last.nomeTreino]) return;
-
-  TREINOS[last.nomeTreino] = last.exercicios.map(e => mkEx(
-    e.nome, Number(e.series)||3, String(e.repsAlvo||"8-12"), Number(e.descansoSeg)||60, e.gif||""
-  ));
-}
 
 let treinoAtual = null; // nome do treino
 let treinoDraft = null; // estado atual (inputs/checkbox)
@@ -329,36 +51,346 @@ window.addEventListener("touchstart", liberarAudioUmaVez, { once: true });
 const TREINO_LABELS = {"Inferior 1": "Treino Completo Inferior 1", "Inferior 2": "Treino Completo Inferior 2", "Superior 1": "Treino Completo Superior 1", "Superior 2": "Treino Completo Superior 2"};
 function friendlyNomeTreino(t){ return TREINO_LABELS[t] || t; }
 
-const TREINOS = {
-  "Inferior 1": [
-    mkEx("Agachamento livre", 3, "8-10", 90, "assets/gifs/agachamento-livre.gif"),
-    mkEx("Leg press", 3, "10-12", 75, "assets/gifs/leg-press.gif"),
-    mkEx("Cadeira extensora", 3, "12-15", 60, "assets/gifs/cadeira-extensora.gif"),
-    mkEx("Mesa flexora", 3, "10-12", 60, "assets/gifs/mesa-flexora.gif"),
-    mkEx("Panturrilha em pé", 4, "10-15", 45, "assets/gifs/panturrilha-em-pe.gif"),
-  ],
-  "Superior 1": [
-    mkEx("Supino reto", 3, "6-8", 90, "assets/gifs/supino-reto.gif"),
-    mkEx("Puxada na frente", 3, "8-10", 75, "assets/gifs/puxada-frente.gif"),
-    mkEx("Desenvolvimento ombro", 3, "8-10", 75, "assets/gifs/desenvolvimento-ombro.gif"),
-    mkEx("Remada baixa", 3, "10-12", 60, "assets/gifs/remada-baixa.gif"),
-    mkEx("Tríceps corda", 3, "10-12", 60, "assets/gifs/triceps-corda.gif"),
-  ],
-  "Inferior 2": [
-    mkEx("Levantamento terra", 3, "8-10", 90, "assets/gifs/levantamento-terra.gif"),
-    mkEx("bulgaro", 3, "10-12", 75, "assets/gifs/bulgaro.gif"),
-    mkEx("cadeira-abdutora", 3, "12-15", 60, "assets/gifs/cadeira-abdutora.gif"),
-    mkEx("stiff-halteres", 3, "12-15", 60, "assets/gifs/stiff-halteres.gif"),
-    mkEx("Panturrilha sentado", 4, "10-15", 45, "assets/gifs/panturrilha-sentado.gif"),
-  ],
-  "Superior 2": [
-    mkEx("Supino inclinado", 3, "8-10", 75, "assets/gifs/supino-inclinado.gif"),
-    mkEx("Remada curvada", 3, "6-8", 90, "assets/gifs/remada-curvada.gif"),
-    mkEx("Elevação lateral", 4, "12-15", 45, "assets/gifs/elevacao-lateral.gif"),
-    mkEx("Rosca direta", 3, "8-10", 60, "assets/gifs/rosca-direta.gif"),
-    mkEx("Tríceps testa", 3, "8-10", 60, "assets/gifs/triceps-testa.gif"),
-  ],
+
+/** ============================
+ *  PROGRAMAS (Objetivo + Nível) ✅
+ *  Opção B: troca automática de exercícios / reps / descanso
+ *  ============================ */
+
+const TREINO_LABELS = {"Inferior 1": "Treino Completo Inferior 1", "Inferior 2": "Treino Completo Inferior 2", "Superior 1": "Treino Completo Superior 1", "Superior 2": "Treino Completo Superior 2"};
+function friendlyNomeTreino(t){ return TREINO_LABELS[t] || t; }
+
+// ✅ Banco de exercícios (para reaproveitar GIFs)
+const EX_DB = {
+  "Agachamento livre": { gif:"assets/gifs/agachamento-livre.gif" },
+  "Leg press": { gif:"assets/gifs/leg-press.gif" },
+  "Cadeira extensora": { gif:"assets/gifs/cadeira-extensora.gif" },
+  "Mesa flexora": { gif:"assets/gifs/mesa-flexora.gif" },
+  "Panturrilha em pé": { gif:"assets/gifs/panturrilha-em-pe.gif" },
+
+  "Supino reto": { gif:"assets/gifs/supino-reto.gif" },
+  "Puxada na frente": { gif:"assets/gifs/puxada-frente.gif" },
+  "Desenvolvimento ombro": { gif:"assets/gifs/desenvolvimento-ombro.gif" },
+  "Remada baixa": { gif:"assets/gifs/remada-baixa.gif" },
+  "Tríceps corda": { gif:"assets/gifs/triceps-corda.gif" },
+
+  "Levantamento terra": { gif:"assets/gifs/levantamento-terra.gif" },
+  "bulgaro": { gif:"assets/gifs/bulgaro.gif" },
+  "cadeira-abdutora": { gif:"assets/gifs/cadeira-abdutora.gif" },
+  "stiff-halteres": { gif:"assets/gifs/stiff-halteres.gif" },
+  "Panturrilha sentado": { gif:"assets/gifs/panturrilha-sentado.gif" },
+
+  "Supino inclinado": { gif:"assets/gifs/supino-inclinado.gif" },
+  "Remada curvada": { gif:"assets/gifs/remada-curvada.gif" },
+  "Elevação lateral": { gif:"assets/gifs/elevacao-lateral.gif" },
+  "Rosca direta": { gif:"assets/gifs/rosca-direta.gif" },
+  "Tríceps testa": { gif:"assets/gifs/triceps-testa.gif" },
 };
+
+// Helper para criar exercício com gif automático
+function ex(nome, series, repsAlvo, descansoSeg){
+  const gif = EX_DB[nome]?.gif || "";
+  return { nome, series, repsAlvo, descansoSeg, gif };
+}
+
+/**
+ * ✅ PROGRAMA
+ * - hipertrofia: reps moderadas, descanso moderado
+ * - forca: reps baixas, descanso maior
+ * - emagrecimento: reps mais altas, descanso menor
+ *
+ * ✅ Níveis
+ * - iniciante: menos séries e exercícios mais “simples”
+ * - intermediario: padrão
+ * - avancado: mais volume e/ou mais pesado
+ */
+const PROGRAMAS = {
+  hipertrofia: {
+    iniciante: {
+      "Inferior 1": [
+        ex("Leg press", 3, "10-12", 75),
+        ex("Cadeira extensora", 3, "12-15", 60),
+        ex("Mesa flexora", 3, "10-12", 60),
+        ex("Agachamento livre", 2, "10-12", 90),
+        ex("Panturrilha em pé", 3, "12-15", 45),
+      ],
+      "Superior 1": [
+        ex("Supino reto", 3, "8-10", 75),
+        ex("Puxada na frente", 3, "10-12", 75),
+        ex("Remada baixa", 3, "10-12", 60),
+        ex("Tríceps corda", 3, "12-15", 60),
+        ex("Elevação lateral", 3, "12-15", 45),
+      ],
+      "Inferior 2": [
+        ex("stiff-halteres", 3, "10-12", 75),
+        ex("bulgaro", 3, "10-12", 75),
+        ex("cadeira-abdutora", 3, "12-15", 60),
+        ex("Mesa flexora", 3, "10-12", 60),
+        ex("Panturrilha sentado", 3, "12-15", 45),
+      ],
+      "Superior 2": [
+        ex("Supino inclinado", 3, "10-12", 75),
+        ex("Remada curvada", 3, "8-10", 90),
+        ex("Rosca direta", 3, "10-12", 60),
+        ex("Tríceps testa", 3, "10-12", 60),
+        ex("Elevação lateral", 3, "12-15", 45),
+      ],
+    },
+    intermediario: {
+      "Inferior 1": [
+        ex("Agachamento livre", 3, "8-10", 90),
+        ex("Leg press", 3, "10-12", 75),
+        ex("Cadeira extensora", 3, "12-15", 60),
+        ex("Mesa flexora", 3, "10-12", 60),
+        ex("Panturrilha em pé", 4, "10-15", 45),
+      ],
+      "Superior 1": [
+        ex("Supino reto", 3, "6-8", 90),
+        ex("Puxada na frente", 3, "8-10", 75),
+        ex("Desenvolvimento ombro", 3, "8-10", 75),
+        ex("Remada baixa", 3, "10-12", 60),
+        ex("Tríceps corda", 3, "10-12", 60),
+      ],
+      "Inferior 2": [
+        ex("Levantamento terra", 3, "8-10", 90),
+        ex("bulgaro", 3, "10-12", 75),
+        ex("cadeira-abdutora", 3, "12-15", 60),
+        ex("stiff-halteres", 3, "12-15", 60),
+        ex("Panturrilha sentado", 4, "10-15", 45),
+      ],
+      "Superior 2": [
+        ex("Supino inclinado", 3, "8-10", 75),
+        ex("Remada curvada", 3, "6-8", 90),
+        ex("Elevação lateral", 4, "12-15", 45),
+        ex("Rosca direta", 3, "8-10", 60),
+        ex("Tríceps testa", 3, "8-10", 60),
+      ],
+    },
+    avancado: {
+      "Inferior 1": [
+        ex("Agachamento livre", 4, "6-8", 120),
+        ex("Leg press", 4, "8-10", 90),
+        ex("Cadeira extensora", 4, "10-12", 75),
+        ex("Mesa flexora", 4, "8-10", 75),
+        ex("Panturrilha em pé", 5, "10-15", 45),
+      ],
+      "Superior 1": [
+        ex("Supino reto", 4, "5-7", 120),
+        ex("Puxada na frente", 4, "6-8", 90),
+        ex("Desenvolvimento ombro", 4, "6-8", 90),
+        ex("Remada baixa", 4, "8-10", 75),
+        ex("Tríceps corda", 4, "10-12", 60),
+      ],
+      "Inferior 2": [
+        ex("Levantamento terra", 4, "5-7", 120),
+        ex("bulgaro", 4, "8-10", 90),
+        ex("stiff-halteres", 4, "8-10", 75),
+        ex("cadeira-abdutora", 4, "12-15", 60),
+        ex("Panturrilha sentado", 5, "10-15", 45),
+      ],
+      "Superior 2": [
+        ex("Supino inclinado", 4, "6-8", 90),
+        ex("Remada curvada", 4, "5-7", 120),
+        ex("Elevação lateral", 5, "12-15", 45),
+        ex("Rosca direta", 4, "8-10", 60),
+        ex("Tríceps testa", 4, "8-10", 60),
+      ],
+    }
+  },
+
+  forca: {
+    iniciante: {
+      "Inferior 1": [
+        ex("Agachamento livre", 3, "5-6", 120),
+        ex("Leg press", 3, "6-8", 120),
+        ex("Cadeira extensora", 2, "8-10", 90),
+        ex("Mesa flexora", 2, "8-10", 90),
+        ex("Panturrilha em pé", 3, "8-12", 60),
+      ],
+      "Superior 1": [
+        ex("Supino reto", 3, "4-6", 150),
+        ex("Puxada na frente", 3, "5-7", 120),
+        ex("Remada baixa", 3, "6-8", 120),
+        ex("Desenvolvimento ombro", 2, "6-8", 120),
+        ex("Tríceps corda", 2, "8-10", 90),
+      ],
+      "Inferior 2": [
+        ex("Levantamento terra", 3, "4-6", 150),
+        ex("stiff-halteres", 3, "6-8", 120),
+        ex("bulgaro", 2, "6-8", 120),
+        ex("cadeira-abdutora", 2, "10-12", 75),
+        ex("Panturrilha sentado", 3, "8-12", 60),
+      ],
+      "Superior 2": [
+        ex("Supino inclinado", 3, "5-7", 120),
+        ex("Remada curvada", 3, "4-6", 150),
+        ex("Rosca direta", 2, "6-8", 90),
+        ex("Tríceps testa", 2, "6-8", 90),
+        ex("Elevação lateral", 2, "10-12", 60),
+      ],
+    },
+    intermediario: {
+      "Inferior 1": [
+        ex("Agachamento livre", 4, "4-6", 150),
+        ex("Leg press", 4, "6-8", 120),
+        ex("Cadeira extensora", 3, "8-10", 90),
+        ex("Mesa flexora", 3, "8-10", 90),
+        ex("Panturrilha em pé", 4, "8-12", 60),
+      ],
+      "Superior 1": [
+        ex("Supino reto", 4, "3-5", 180),
+        ex("Puxada na frente", 4, "4-6", 150),
+        ex("Desenvolvimento ombro", 3, "4-6", 150),
+        ex("Remada baixa", 4, "6-8", 120),
+        ex("Tríceps corda", 3, "8-10", 90),
+      ],
+      "Inferior 2": [
+        ex("Levantamento terra", 4, "3-5", 180),
+        ex("bulgaro", 3, "6-8", 120),
+        ex("stiff-halteres", 4, "6-8", 120),
+        ex("cadeira-abdutora", 3, "10-12", 75),
+        ex("Panturrilha sentado", 4, "8-12", 60),
+      ],
+      "Superior 2": [
+        ex("Supino inclinado", 4, "4-6", 150),
+        ex("Remada curvada", 4, "3-5", 180),
+        ex("Elevação lateral", 3, "10-12", 60),
+        ex("Rosca direta", 3, "6-8", 90),
+        ex("Tríceps testa", 3, "6-8", 90),
+      ],
+    },
+    avancado: {
+      "Inferior 1": [
+        ex("Agachamento livre", 5, "3-5", 180),
+        ex("Leg press", 5, "5-7", 150),
+        ex("Cadeira extensora", 4, "6-8", 120),
+        ex("Mesa flexora", 4, "6-8", 120),
+        ex("Panturrilha em pé", 5, "8-12", 60),
+      ],
+      "Superior 1": [
+        ex("Supino reto", 5, "2-4", 210),
+        ex("Puxada na frente", 5, "3-5", 180),
+        ex("Desenvolvimento ombro", 4, "3-5", 180),
+        ex("Remada baixa", 5, "5-7", 150),
+        ex("Tríceps corda", 4, "6-8", 120),
+      ],
+      "Inferior 2": [
+        ex("Levantamento terra", 5, "2-4", 210),
+        ex("bulgaro", 4, "5-7", 150),
+        ex("stiff-halteres", 5, "5-7", 150),
+        ex("cadeira-abdutora", 4, "10-12", 75),
+        ex("Panturrilha sentado", 5, "8-12", 60),
+      ],
+      "Superior 2": [
+        ex("Supino inclinado", 5, "3-5", 180),
+        ex("Remada curvada", 5, "2-4", 210),
+        ex("Elevação lateral", 4, "10-12", 60),
+        ex("Rosca direta", 4, "6-8", 120),
+        ex("Tríceps testa", 4, "6-8", 120),
+      ],
+    }
+  },
+
+  emagrecimento: {
+    iniciante: {
+      "Inferior 1": [
+        ex("Leg press", 3, "12-15", 45),
+        ex("Cadeira extensora", 3, "15-20", 45),
+        ex("Mesa flexora", 3, "12-15", 45),
+        ex("Agachamento livre", 2, "12-15", 60),
+        ex("Panturrilha em pé", 3, "15-20", 40),
+      ],
+      "Superior 1": [
+        ex("Supino reto", 3, "10-12", 60),
+        ex("Puxada na frente", 3, "12-15", 60),
+        ex("Remada baixa", 3, "12-15", 50),
+        ex("Tríceps corda", 3, "15-20", 45),
+        ex("Elevação lateral", 3, "15-20", 40),
+      ],
+      "Inferior 2": [
+        ex("stiff-halteres", 3, "12-15", 60),
+        ex("bulgaro", 3, "12-15", 60),
+        ex("cadeira-abdutora", 3, "15-20", 45),
+        ex("Mesa flexora", 3, "12-15", 45),
+        ex("Panturrilha sentado", 3, "15-20", 40),
+      ],
+      "Superior 2": [
+        ex("Supino inclinado", 3, "12-15", 60),
+        ex("Remada curvada", 3, "10-12", 75),
+        ex("Rosca direta", 3, "12-15", 45),
+        ex("Tríceps testa", 3, "12-15", 45),
+        ex("Elevação lateral", 3, "15-20", 40),
+      ],
+    },
+    intermediario: {
+      "Inferior 1": [
+        ex("Agachamento livre", 3, "10-12", 75),
+        ex("Leg press", 4, "12-15", 60),
+        ex("Cadeira extensora", 4, "15-20", 45),
+        ex("Mesa flexora", 4, "12-15", 45),
+        ex("Panturrilha em pé", 4, "15-20", 40),
+      ],
+      "Superior 1": [
+        ex("Supino reto", 4, "10-12", 60),
+        ex("Puxada na frente", 4, "12-15", 60),
+        ex("Desenvolvimento ombro", 3, "12-15", 60),
+        ex("Remada baixa", 4, "12-15", 50),
+        ex("Tríceps corda", 4, "15-20", 45),
+      ],
+      "Inferior 2": [
+        ex("Levantamento terra", 3, "8-10", 90),
+        ex("bulgaro", 4, "12-15", 60),
+        ex("stiff-halteres", 4, "12-15", 60),
+        ex("cadeira-abdutora", 4, "15-20", 45),
+        ex("Panturrilha sentado", 4, "15-20", 40),
+      ],
+      "Superior 2": [
+        ex("Supino inclinado", 4, "12-15", 60),
+        ex("Remada curvada", 3, "8-10", 90),
+        ex("Elevação lateral", 4, "15-20", 40),
+        ex("Rosca direta", 4, "12-15", 45),
+        ex("Tríceps testa", 4, "12-15", 45),
+      ],
+    },
+    avancado: {
+      "Inferior 1": [
+        ex("Agachamento livre", 4, "8-10", 90),
+        ex("Leg press", 5, "12-15", 60),
+        ex("Cadeira extensora", 5, "15-20", 45),
+        ex("Mesa flexora", 5, "12-15", 45),
+        ex("Panturrilha em pé", 5, "15-20", 40),
+      ],
+      "Superior 1": [
+        ex("Supino reto", 5, "8-10", 75),
+        ex("Puxada na frente", 5, "10-12", 75),
+        ex("Desenvolvimento ombro", 4, "10-12", 75),
+        ex("Remada baixa", 5, "10-12", 60),
+        ex("Tríceps corda", 5, "12-15", 45),
+      ],
+      "Inferior 2": [
+        ex("Levantamento terra", 4, "6-8", 120),
+        ex("bulgaro", 5, "10-12", 60),
+        ex("stiff-halteres", 5, "10-12", 60),
+        ex("cadeira-abdutora", 5, "15-20", 45),
+        ex("Panturrilha sentado", 5, "15-20", 40),
+      ],
+      "Superior 2": [
+        ex("Supino inclinado", 5, "10-12", 75),
+        ex("Remada curvada", 4, "6-8", 120),
+        ex("Elevação lateral", 5, "15-20", 40),
+        ex("Rosca direta", 5, "10-12", 45),
+        ex("Tríceps testa", 5, "10-12", 45),
+      ],
+    }
+  }
+};
+
+let programaAtual = { objetivo: "hipertrofia", nivel: "intermediario" };
+let TREINOS_ATIVOS = PROGRAMAS[programaAtual.objetivo][programaAtual.nivel];
+
+// garante compatibilidade com o resto do app
+function getTreinosAtivos(){ return TREINOS_ATIVOS; }
+
 
 function mkEx(nome, series, repsAlvo, descansoSeg, gif = "") {
   return { nome, series, repsAlvo, descansoSeg, gif };
@@ -393,39 +425,6 @@ function saveDraft(draft) {
 function clearDraft() {
   localStorage.removeItem(STORAGE_DRAFT);
 }
-/** Preferências da Home (objetivo / nível / tipo) */
-function loadPrefs(){
-  try { return JSON.parse(localStorage.getItem(STORAGE_PREFS) || "{}"); }
-  catch { return {}; }
-}
-function savePrefs(prefs){
-  try { localStorage.setItem(STORAGE_PREFS, JSON.stringify(prefs || {})); } catch {}
-}
-function getHomePrefs(){
-  const goal = document.getElementById("goalSelect")?.value || "";
-  const level = document.getElementById("levelSelect")?.value || "";
-  const focus = document.getElementById("focusSelect")?.value || "";
-  const prefs = { goal, level, focus };
-  savePrefs(prefs);
-  return prefs;
-}
-function initHomePrefs(){
-  restaurarUltimoTreinoAutomatico();
-  const prefs = loadPrefs();
-  const goal = document.getElementById("goalSelect");
-  const level = document.getElementById("levelSelect");
-  const focus = document.getElementById("focusSelect");
-
-  if (goal && prefs.goal) goal.value = prefs.goal;
-  if (level && prefs.level) level.value = prefs.level;
-  if (focus && prefs.focus) focus.value = prefs.focus;
-
-  [goal, level, focus].forEach(elSel => {
-    if (!elSel) return;
-    elSel.addEventListener("change", () => getHomePrefs());
-  });
-}
-
 
 /** Pega o último registro do exercício no histórico */
 function getUltimoRegistroExercicio(exNome) {
@@ -522,6 +521,108 @@ function el(id){ return document.getElementById(id); }
 
 let treinoSelecionadoHome = null; // seleção na tela inicial
 
+
+
+/* ===========================
+   PROGRAMA (Objetivo + Nível) ✅
+   =========================== */
+
+function setPrograma(objetivo, nivel){
+  const okObj = PROGRAMAS[objetivo];
+  const okNivel = okObj ? okObj[nivel] : null;
+  if (!okObj || !okNivel) return;
+
+  programaAtual = { objetivo, nivel };
+  TREINOS_ATIVOS = okNivel;
+
+  // reseta seleção da home para evitar começar treino “errado”
+  treinoSelecionadoHome = null;
+  document.querySelectorAll("#listaTreinos .train").forEach(b=>b.classList.remove("is-selected"));
+
+  const btn = document.getElementById("btnComecarTreino");
+  if (btn){ btn.classList.add("is-disabled"); btn.textContent = "🚀 Começar treino"; }
+
+  const lbl = document.getElementById("treinoSelecionadoLabel");
+  if (lbl) lbl.textContent = "Selecione um treino abaixo 👇";
+
+  atualizarHomeStats();
+}
+
+window.setProgramaFromUI = function(){
+  const selObj = document.getElementById("selObjetivo");
+  const selNivel = document.getElementById("selNivel");
+  const objetivo = selObj?.value || "hipertrofia";
+  const nivel = selNivel?.value || "intermediario";
+  setPrograma(objetivo, nivel);
+};
+
+/* ===========================
+   META SEMANAL / HOME STATS ✅
+   =========================== */
+const STORAGE_WEEKLY_GOAL = "treino_weekly_goal_v1";
+
+function getWeeklyGoal(){
+  const raw = localStorage.getItem(STORAGE_WEEKLY_GOAL);
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : 4;
+}
+function setWeeklyGoal(n){
+  const v = Math.max(1, Math.floor(Number(n) || 4));
+  localStorage.setItem(STORAGE_WEEKLY_GOAL, String(v));
+  return v;
+}
+function startOfWeekISO(dateObj){
+  const d = new Date(dateObj);
+  const day = d.getDay(); // 0 dom, 1 seg...
+  const diff = (day === 0 ? -6 : 1) - day; // segunda como início
+  d.setDate(d.getDate() + diff);
+  d.setHours(0,0,0,0);
+  return d;
+}
+function endOfWeekISO(dateObj){
+  const s = startOfWeekISO(dateObj);
+  const e = new Date(s);
+  e.setDate(e.getDate() + 6);
+  e.setHours(23,59,59,999);
+  return e;
+}
+function parseISODate(iso){
+  const [y,m,d] = String(iso||"").split("-").map(Number);
+  if (!y||!m||!d) return null;
+  const dt = new Date(y, m-1, d);
+  dt.setHours(12,0,0,0);
+  return dt;
+}
+
+window.atualizarHomeStats = function(){
+  const inp = document.getElementById("weeklyGoal");
+  const goal = setWeeklyGoal(inp?.value || getWeeklyGoal());
+  if (inp) inp.value = goal;
+
+  const now = new Date();
+  const s = startOfWeekISO(now);
+  const e = endOfWeekISO(now);
+
+  const hist = loadHistory();
+  const daSemana = hist.filter(h => {
+    const dt = parseISODate(h.data);
+    return dt && dt >= s && dt <= e;
+  });
+
+  const treinosFeitos = daSemana.length;
+  const vol = daSemana.reduce((a,h)=>a+(Number(h.volumeTotal)||0),0);
+
+  const resumo = document.getElementById("hsResumo");
+  const volEl = document.getElementById("hsVolume");
+  const fill = document.getElementById("hsFill");
+
+  const pct = Math.min(100, Math.round((treinosFeitos / goal) * 100));
+
+  if (resumo) resumo.textContent = `${treinosFeitos}/${goal} treinos • ${pct}%`;
+  if (volEl) volEl.textContent = `${Math.round(vol).toLocaleString("pt-BR")} kg`;
+  if (fill) fill.style.width = `${pct}%`;
+};
+
 let builderState = { aberto:false, filtro:"Todos", busca:"", selecionados:{}, ordem:[] };
 
 window.selecionarTreino = function(nomeTreino){
@@ -556,42 +657,6 @@ window.iniciarTreinoSelecionado = function(){
   }
   carregarTreino(treinoSelecionadoHome);
 };
-/** Começar: se você selecionou um treino manualmente, ele tem prioridade.
-    Senão, usa a recomendação baseada em Objetivo/Nível/Tipo. */
-window.iniciarTreinoPrincipal = function(){
-  if (treinoSelecionadoHome){
-    carregarTreino(treinoSelecionadoHome);
-    return;
-  }
-  iniciarTreinoAutomatico();
-};
-
-/** ✅ Começar treino baseado nas escolhas (Objetivo / Nível / Tipo) */
-window.iniciarTreinoAutomatico = function(){
-  const prefs = getHomePrefs();
-
-  // ✅ gera um treino novo (com exercícios diferentes) baseado em Objetivo/Nível/Tipo
-  const recomendado = gerarTreinoAutomatico(prefs);
-
-  // feedback na Home
-  treinoSelecionadoHome = recomendado;
-  const lbl = document.getElementById("treinoSelecionadoLabel");
-  if (lbl){
-    lbl.textContent = `Recomendado: ${recomendado}`;
-  }
-
-  carregarTreino(recomendado);
-};
-
-/** ✅ Abre direto a parte de "Treinos salvos" (sem apagar nada) */
-window.abrirTreinosSalvos = function(){
-  abrirBiblioteca();
-  setTimeout(() => {
-    const wrap = document.getElementById("builderSavedWrap");
-    if (wrap) wrap.scrollIntoView({ behavior:"smooth", block:"start" });
-  }, 50);
-};
-
 
 
 /* ===========================
@@ -607,8 +672,8 @@ function categoriaPorNomeEx(nome){
 
 function montarBiblioteca(){
   const map = new Map();
-  Object.keys(TREINOS).forEach(tn => {
-    TREINOS[tn].forEach(ex => {
+  Object.keys(getTreinosAtivos()).forEach(tn => {
+    getTreinosAtivos()[tn].forEach(ex => {
       const key = ex.nome.trim().toLowerCase();
       if (!map.has(key)){
         map.set(key, {
@@ -1018,6 +1083,7 @@ window.mostrarHome = function () {
   document.body.classList.add("mode-home");
   document.body.classList.remove("mode-work","mode-builder");
   try { pararDescanso(); } catch {}
+  try { toggleFocusMode(false); } catch {}
 
   document.body.classList.add("is-home");
   document.body.classList.remove("is-workarea");
@@ -1043,9 +1109,9 @@ window.mostrarHome = function () {
   treinoSelecionadoHome = null;
   document.querySelectorAll("#listaTreinos .train").forEach(b=>b.classList.remove("is-selected"));
   const btn = document.getElementById("btnComecarTreino");
-  if (btn){ btn.classList.remove("is-disabled"); btn.textContent = "🚀 Começar treino"; }
+  if (btn){ btn.classList.add("is-disabled"); btn.textContent = "🚀 Começar treino"; }
   const lbl = document.getElementById("treinoSelecionadoLabel");
-  if (lbl) lbl.textContent = "Dica: escolha objetivo, nível e tipo para recomendar seu treino.";
+  if (lbl) lbl.textContent = "Selecione um treino abaixo 👇";
 
   definirFraseMotivacional();
   renderMiniChart();
@@ -1101,12 +1167,6 @@ window.addEventListener("scroll", () => {
 }, { passive: true });
 
 window.carregarTreino = function(nomeTreino) {
-  if (!TREINOS[nomeTreino] || !Array.isArray(TREINOS[nomeTreino])) {
-    alert('Treino não encontrado (talvez você atualizou o projeto). Volte para a Home e escolha novamente.');
-    try { mostrarHome(); } catch {}
-    return;
-  }
-
   treinoAtual = nomeTreino;
 
   // ✅ entra na tela de treino
@@ -1124,10 +1184,8 @@ window.carregarTreino = function(nomeTreino) {
 };
 
 function criarDraftVazio(nomeTreino){
-  const base = TREINOS[nomeTreino];
-  if (!base || !Array.isArray(base)) return { data: hojeISO(), treino: nomeTreino, exercicios: [] };
   const data = hojeISO();
-  const exercicios = TREINOS[nomeTreino].map(ex => ({
+  const exercicios = getTreinosAtivos()[nomeTreino].map(ex => ({
     nome: ex.nome,
     repsAlvo: ex.repsAlvo,
     descansoSeg: ex.descansoSeg,
@@ -1166,7 +1224,7 @@ function renderTreino(){
   treinoDiv.appendChild(titulo);
 
   treinoDraft.exercicios.forEach((ex, exIndex) => {
-    const base = (TREINOS[treinoAtual] && TREINOS[treinoAtual][exIndex]) ? TREINOS[treinoAtual][exIndex] : null;
+    const base = (getTreinosAtivos()[treinoAtual] && getTreinosAtivos()[treinoAtual][exIndex]) ? getTreinosAtivos()[treinoAtual][exIndex] : null;
     const descansoSeg = base ? base.descansoSeg : ex.descansoSeg;
     const gifSrc = base ? (base.gif || "") : (ex.gif || "");
     const sug = sugerirProximaCarga(ex.nome, ex.repsAlvo);
@@ -1238,7 +1296,158 @@ function renderTreino(){
 
   atualizarMetricas();
   renderMiniChart();
+  if (focusMode) updateFocusUI();
 }
+
+
+/* ===========================
+   MODO FOCO (Treino ao vivo) ✅
+   =========================== */
+let focusMode = false;
+let focusPtr = { exIndex: 0, serieIndex: 0 };
+
+function findNextPending(startEx=0, startSerie=0){
+  if (!treinoDraft?.exercicios?.length) return null;
+  for (let ei = startEx; ei < treinoDraft.exercicios.length; ei++){
+    const ex = treinoDraft.exercicios[ei];
+    for (let si = (ei===startEx? startSerie:0); si < ex.series.length; si++){
+      if (!ex.series[si].ok) return { exIndex: ei, serieIndex: si };
+    }
+  }
+  // se não achar a partir do ponteiro, tenta do começo
+  for (let ei = 0; ei < treinoDraft.exercicios.length; ei++){
+    const ex = treinoDraft.exercicios[ei];
+    for (let si = 0; si < ex.series.length; si++){
+      if (!ex.series[si].ok) return { exIndex: ei, serieIndex: si };
+    }
+  }
+  return null;
+}
+
+function updateFocusUI(){
+  const panel = document.getElementById("focusPanel");
+  if (!panel) return;
+
+  if (!focusMode || !treinoDraft){
+    panel.style.display = "none";
+    panel.setAttribute("aria-hidden","true");
+    return;
+  }
+
+  const ptr = focusPtr;
+  const ex = treinoDraft.exercicios?.[ptr.exIndex];
+  const s = ex?.series?.[ptr.serieIndex];
+  if (!ex || !s){
+    const next = findNextPending(0,0);
+    if (next){ focusPtr = next; return updateFocusUI(); }
+    // tudo concluído
+    panel.style.display = "none";
+    panel.setAttribute("aria-hidden","true");
+    return;
+  }
+
+  panel.style.display = "block";
+  panel.setAttribute("aria-hidden","false");
+
+  const title = document.getElementById("focusTitle");
+  const sub = document.getElementById("focusSub");
+  const kicker = document.getElementById("focusKicker");
+  const inpPeso = document.getElementById("focusPeso");
+  const inpReps = document.getElementById("focusReps");
+
+  const totalSeriesEx = ex.series.length;
+  const doneEx = ex.series.filter(x=>x.ok).length;
+  if (kicker) kicker.textContent = `🎯 ${treinoAtual || "Treino"} • ${doneEx}/${totalSeriesEx} séries feitas`;
+
+  if (title) title.textContent = ex.nome;
+  if (sub) sub.textContent = `Série ${ptr.serieIndex + 1}/${totalSeriesEx} • alvo ${ex.repsAlvo} • descanso ${ex.descansoSeg}s`;
+
+  if (inpPeso) inpPeso.value = (s.peso ?? "") === null ? "" : String(s.peso ?? "");
+  if (inpReps) inpReps.value = (s.reps ?? "") === null ? "" : String(s.reps ?? "");
+}
+
+window.toggleFocusMode = function(force){
+  if (!treinoDraft){ return; }
+  focusMode = (typeof force === "boolean") ? force : !focusMode;
+
+  if (focusMode){
+    const next = findNextPending(0,0);
+    if (next) focusPtr = next;
+    updateFocusUI();
+    try { navigator.vibrate?.(20); } catch {}
+  } else {
+    updateFocusUI();
+  }
+};
+
+function clampPtr(){
+  if (!treinoDraft?.exercicios?.length) return;
+  focusPtr.exIndex = Math.max(0, Math.min(focusPtr.exIndex, treinoDraft.exercicios.length-1));
+  const ex = treinoDraft.exercicios[focusPtr.exIndex];
+  focusPtr.serieIndex = Math.max(0, Math.min(focusPtr.serieIndex, ex.series.length-1));
+}
+
+window.focusPrev = function(){
+  if (!treinoDraft) return;
+  clampPtr();
+  // volta série
+  focusPtr.serieIndex -= 1;
+  if (focusPtr.serieIndex < 0){
+    focusPtr.exIndex -= 1;
+    if (focusPtr.exIndex < 0) focusPtr.exIndex = 0;
+    const ex = treinoDraft.exercicios[focusPtr.exIndex];
+    focusPtr.serieIndex = Math.max(0, ex.series.length-1);
+  }
+  updateFocusUI();
+};
+
+window.focusNext = function(){
+  if (!treinoDraft) return;
+  clampPtr();
+  focusPtr.serieIndex += 1;
+  const ex = treinoDraft.exercicios[focusPtr.exIndex];
+  if (focusPtr.serieIndex >= ex.series.length){
+    focusPtr.exIndex += 1;
+    if (focusPtr.exIndex >= treinoDraft.exercicios.length) focusPtr.exIndex = treinoDraft.exercicios.length-1;
+    focusPtr.serieIndex = 0;
+  }
+  updateFocusUI();
+};
+
+window.focusFeito = function(){
+  if (!treinoDraft) return;
+  clampPtr();
+
+  const inpPeso = document.getElementById("focusPeso");
+  const inpReps = document.getElementById("focusReps");
+  const peso = inpPeso?.value === "" ? null : Number(inpPeso?.value);
+  const reps = inpReps?.value === "" ? null : Number(inpReps?.value);
+
+  const ex = treinoDraft.exercicios[focusPtr.exIndex];
+  const s = ex.series[focusPtr.serieIndex];
+
+  s.peso = Number.isFinite(peso) ? peso : null;
+  s.reps = Number.isFinite(reps) ? reps : null;
+  s.ok = true;
+
+  saveDraft(treinoDraft);
+
+  // atualiza tela normal sem perder o foco
+  atualizarMetricas();
+  renderMiniChart();
+
+  // descanso automático
+  liberarAudioUmaVez();
+  iniciarDescanso(Number(ex.descansoSeg) || 60);
+
+  // pula pro próximo pendente
+  const next = findNextPending(focusPtr.exIndex, focusPtr.serieIndex);
+  if (next) focusPtr = next;
+
+  updateFocusUI();
+  try { navigator.vibrate?.(30); } catch {}
+};
+
 
 window.toggleOk = function(exIndex, serieIndex){
   const s = treinoDraft.exercicios[exIndex].series[serieIndex];
@@ -1403,10 +1612,12 @@ window.salvarSessao = function(){
   else hist.push(sessao);
 
   saveHistory(hist);
+  try { atualizarHomeStats(); } catch {}
   alert("✅ Treino salvo no histórico!");
 };
 
 window.finalizarTreino = function(){
+  try { toggleFocusMode(false); } catch {}
   salvarSessao();
   clearDraft();
   treinoAtual = null;
@@ -1677,31 +1888,106 @@ window.fecharModalGif = function(){
 (function init(){
   carregarBuilder();
   document.body.classList.add("mode-home");
-  document.body.classList.remove("mode-work","mode-builder");
+  document.body.classList.remove("mode-work");
   document.body.classList.add("is-home");
   document.body.classList.remove("is-workarea");
-
-  // Home: inicia selects e frase motivacional
-  initHomePrefs();
-  definirFraseMotivacional();
-
-  // botão Começar (não fica desabilitado)
+  // Home hero: começa sem seleção
+  treinoSelecionadoHome = null;
   const btn = document.getElementById("btnComecarTreino");
-  if (btn){
-    btn.classList.remove("is-disabled");
-    // o onclick está no HTML (iniciarTreinoAutomatico)
-  }
-
-  // label inferior (dica / recomendado)
+  if (btn){ btn.classList.add("is-disabled"); btn.textContent = "🚀 Começar treino"; }
   const lbl = document.getElementById("treinoSelecionadoLabel");
-  if (lbl) lbl.textContent = "Dica: escolha objetivo, nível e tipo para recomendar seu treino.";
-
+  if (lbl) lbl.textContent = "Selecione um treino abaixo 👇";
   el("home").style.display = "block";
   el("workarea").style.display = "none";
-
-  setChipHome("Escolha seu treino");
+  setChipHome("Escolha um treino");
   setBottomNavActive("home");
   setFabsVisible({ save:false, top:false });
   renderMiniChart();
 })();
 
+
+/* ===========================
+   INIT (defer) ✅
+   =========================== */
+(function initApp(){
+  try {
+    // set weekly goal input from storage
+    const inp = document.getElementById("weeklyGoal");
+    if (inp) inp.value = getWeeklyGoal();
+
+    // aplica programa inicial (padrão: hipertrofia / intermediário)
+    const selObj = document.getElementById("selObjetivo");
+    const selNivel = document.getElementById("selNivel");
+    if (selObj) selObj.value = programaAtual.objetivo;
+    if (selNivel) selNivel.value = programaAtual.nivel;
+
+    setPrograma(programaAtual.objetivo, programaAtual.nivel);
+
+    definirFraseMotivacional();
+    atualizarHomeStats();
+    renderMiniChart();
+  } catch (e) {
+    console.warn("Init error:", e);
+  }
+})();
+
+
+
+/* ===============================
+   ➕ EXERCÍCIOS PROFISSIONAIS ADICIONADOS
+   =============================== */
+
+if (typeof EX_DB !== "undefined") {
+  EX_DB.push(
+    { id:"supino-declinado", nome:"Supino declinado barra", tipo:"superior" },
+    { id:"crucifixo-maquina", nome:"Crucifixo máquina", tipo:"superior" },
+    { id:"cross-alto", nome:"Cross over polia alta", tipo:"superior" },
+    { id:"peck-deck", nome:"Peck deck", tipo:"superior" },
+
+    { id:"pulldown-aberto", nome:"Pulldown pegada aberta", tipo:"superior" },
+    { id:"pulldown-neutro", nome:"Pulldown pegada neutra", tipo:"superior" },
+    { id:"remada-cavalinho", nome:"Remada cavalinho", tipo:"superior" },
+    { id:"remada-unilateral-maq", nome:"Remada articulada unilateral", tipo:"superior" },
+
+    { id:"desenvolvimento-arnold", nome:"Desenvolvimento arnold", tipo:"superior" },
+    { id:"elevacao-lateral-polia", nome:"Elevação lateral na polia", tipo:"superior" },
+    { id:"elevacao-posterior-maq", nome:"Elevação posterior máquina", tipo:"superior" },
+
+    { id:"rosca-scott", nome:"Rosca scott barra", tipo:"superior" },
+    { id:"rosca-concentrada", nome:"Rosca concentrada", tipo:"superior" },
+    { id:"rosca-cabo", nome:"Rosca cabo", tipo:"superior" },
+
+    { id:"triceps-banco", nome:"Tríceps banco", tipo:"superior" },
+    { id:"triceps-frances", nome:"Tríceps francês halter", tipo:"superior" },
+    { id:"triceps-pulley-barra", nome:"Tríceps pulley barra", tipo:"superior" },
+
+    { id:"agachamento-hack", nome:"Agachamento hack", tipo:"inferior" },
+    { id:"passada-smith", nome:"Passada no smith", tipo:"inferior" },
+    { id:"sissy-squat", nome:"Sissy squat", tipo:"inferior" },
+
+    { id:"good-morning", nome:"Good morning barra", tipo:"inferior" },
+    { id:"flexora-em-pe", nome:"Flexora em pé", tipo:"inferior" },
+    { id:"nordic-curl", nome:"Nordic curl", tipo:"inferior" },
+
+    { id:"glute-bridge", nome:"Glute bridge", tipo:"inferior" },
+    { id:"step-up", nome:"Step up banco", tipo:"inferior" },
+    { id:"abducao-cabo", nome:"Abdução cabo", tipo:"inferior" },
+
+    { id:"panturrilha-leg", nome:"Panturrilha no leg press", tipo:"inferior" },
+    { id:"panturrilha-unilateral", nome:"Panturrilha unilateral", tipo:"inferior" },
+
+    { id:"prancha-lateral", nome:"Prancha lateral", tipo:"inferior" },
+    { id:"abdominal-bicicleta", nome:"Abdominal bicicleta", tipo:"inferior" },
+    { id:"abdominal-supra", nome:"Abdominal supra", tipo:"inferior" },
+    { id:"dragon-flag", nome:"Dragon flag", tipo:"inferior" },
+
+    { id:"box-jump", nome:"Box jump", tipo:"inferior" },
+    { id:"slam-ball", nome:"Slam ball", tipo:"inferior" },
+    { id:"battle-rope", nome:"Battle rope", tipo:"inferior" },
+    { id:"mountain-climber", nome:"Mountain climber", tipo:"inferior" },
+    { id:"farmer-walk", nome:"Farmer walk", tipo:"inferior" },
+    { id:"jump-squat-barra", nome:"Jump squat barra", tipo:"inferior" },
+    { id:"swing-alternado", nome:"Swing kettlebell alternado", tipo:"inferior" },
+    { id:"afundo-salto", nome:"Afundo com salto", tipo:"inferior" }
+  );
+}
