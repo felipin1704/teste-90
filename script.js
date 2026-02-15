@@ -12,6 +12,225 @@ const STORAGE_BUILDER = "treino_builder_v1";
 const STORAGE_FAVS = "treino_favs_v1";
 const STORAGE_SAVED_WORKOUTS = "treino_saved_workouts_v1";
 
+/* ===========================
+   SUPABASE LOGIN (Seguro) ✅
+   - Email + senha + confirmação por email
+   - Dados salvos por usuário no banco
+   =========================== */
+
+const SUPABASE_URL = "https://jhndcldsmzeyjhtqbkek.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_F6upCD1LU7ZpNi-ckmqtgA_fNYai9nW";
+
+// UMD (cdn) expõe window.supabase
+const supa = (window.supabase && window.supabase.createClient)
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null;
+
+let authUser = null;
+let userDataLoaded = false;
+
+// 1 registro por usuário com todos os dados do app
+let appData = {
+  history: [],
+  draft: null,
+  builder: null,
+  favs: {},
+  savedWorkouts: [],
+};
+
+let saveDebounce = null;
+
+function setMode(mode){
+  document.body.classList.remove("mode-auth","mode-home","mode-work","mode-builder");
+  document.body.classList.add(mode);
+}
+
+function showAuth(){
+  setMode("mode-auth");
+  const a = document.getElementById("auth");
+  const h = document.getElementById("home");
+  const w = document.getElementById("workarea");
+  if (a) a.style.display = "block";
+  if (h) h.style.display = "none";
+  if (w) w.style.display = "none";
+  document.getElementById("bottomNav")?.classList.add("is-hidden");
+}
+
+function showAppHome(){
+  // o app já tem mostrarHome()
+  document.getElementById("auth")?.style && (document.getElementById("auth").style.display="none");
+  document.getElementById("bottomNav")?.classList.remove("is-hidden");
+  mostrarHome();
+}
+
+function setAuthStatus(text, kind="") {
+  const el = document.getElementById("authStatus");
+  if (!el) return;
+  el.className = "auth-status" + (kind ? " " + kind : "");
+  el.textContent = text || "";
+}
+
+async function ensureUser(){
+  if (!supa) {
+    alert("Supabase não carregou. Verifique sua internet e tente de novo.");
+    throw new Error("Supabase client not loaded");
+  }
+  const { data } = await supa.auth.getSession();
+  authUser = data?.session?.user || null;
+  return authUser;
+}
+
+async function loadUserData(force=false){
+  if (!authUser) return;
+  if (userDataLoaded && !force) return;
+
+  // tabela: user_data (user_id uuid PK, data jsonb, updated_at timestamptz)
+  const { data, error, status } = await supa
+    .from("user_data")
+    .select("data")
+    .eq("user_id", authUser.id)
+    .maybeSingle();
+
+  if (error && status !== 406) {
+    console.error(error);
+    // fallback: se der erro, mantém em branco
+    userDataLoaded = true;
+    return;
+  }
+
+  if (data && data.data) {
+    const d = data.data;
+    appData = {
+      history: Array.isArray(d.history) ? d.history : [],
+      draft: d.draft ?? null,
+      builder: d.builder ?? null,
+      favs: (d.favs && typeof d.favs === "object") ? d.favs : {},
+      savedWorkouts: Array.isArray(d.savedWorkouts) ? d.savedWorkouts : [],
+    };
+  } else {
+    // cria registro inicial
+    appData = { history: [], draft: null, builder: null, favs: {}, savedWorkouts: [] };
+    await persistUserData(true);
+  }
+
+  userDataLoaded = true;
+}
+
+async function persistUserData(immediate=false){
+  if (!authUser) return;
+  if (!supa) return;
+
+  const payload = {
+    user_id: authUser.id,
+    data: {
+      history: appData.history || [],
+      draft: appData.draft || null,
+      builder: appData.builder || null,
+      favs: appData.favs || {},
+      savedWorkouts: appData.savedWorkouts || [],
+    },
+    updated_at: new Date().toISOString(),
+  };
+
+  if (immediate) {
+    const { error } = await supa.from("user_data").upsert(payload, { onConflict: "user_id" });
+    if (error) console.error(error);
+    return;
+  }
+
+  // debounce (evita spam no banco)
+  clearTimeout(saveDebounce);
+  saveDebounce = setTimeout(async () => {
+    const { error } = await supa.from("user_data").upsert(payload, { onConflict: "user_id" });
+    if (error) console.error(error);
+  }, 650);
+}
+
+window.authSignup = async function(){
+  const email = String(document.getElementById("authEmail")?.value || "").trim();
+  const pass = String(document.getElementById("authPass")?.value || "");
+  if (!email || !pass) {
+    setAuthStatus("Preencha email e senha.", "bad");
+    return;
+  }
+  setAuthStatus("Criando conta...", "");
+  const { data, error } = await supa.auth.signUp({
+    email,
+    password: pass,
+    options: {
+      emailRedirectTo: window.location.origin
+    }
+  });
+  if (error) {
+    setAuthStatus(error.message || "Erro ao criar conta.", "bad");
+    return;
+  }
+  // com confirmação, user pode vir null/sem sessão
+  setAuthStatus("✅ Conta criada! Confirme no email para entrar.", "good");
+};
+
+window.authLogin = async function(){
+  const email = String(document.getElementById("authEmail")?.value || "").trim();
+  const pass = String(document.getElementById("authPass")?.value || "");
+  if (!email || !pass) {
+    setAuthStatus("Preencha email e senha.", "bad");
+    return;
+  }
+  setAuthStatus("Entrando...", "");
+  const { data, error } = await supa.auth.signInWithPassword({
+    email,
+    password: pass
+  });
+  if (error) {
+    // quando não confirmou email, geralmente dá erro
+    setAuthStatus("❌ " + (error.message || "Não foi possível entrar. Confirme seu email e tente novamente."), "bad");
+    return;
+  }
+  authUser = data?.user || null;
+  await loadUserData(true);
+  setAuthStatus("");
+  showAppHome();
+};
+
+window.authLogout = async function(){
+  try {
+    await supa?.auth?.signOut();
+  } catch {}
+  authUser = null;
+  userDataLoaded = false;
+  appData = { history: [], draft: null, builder: null, favs: {}, savedWorkouts: [] };
+  showAuth();
+};
+
+// roda no boot
+async function bootAuth(){
+  if (!supa) {
+    console.warn("Supabase não encontrado no window.");
+    showAuth();
+    return;
+  }
+
+  // escuta mudanças
+  supa.auth.onAuthStateChange(async (_evt, session) => {
+    authUser = session?.user || null;
+    if (!authUser) {
+      showAuth();
+      return;
+    }
+    await loadUserData(true);
+    showAppHome();
+  });
+
+  await ensureUser();
+  if (!authUser) {
+    showAuth();
+    return;
+  }
+  await loadUserData();
+  showAppHome();
+}
+
+
 let treinoAtual = null; // nome do treino
 let treinoDraft = null; // estado atual (inputs/checkbox)
 let descansoInterval = null;
@@ -98,23 +317,58 @@ function formatBR(iso) {
   const [y, m, d] = iso.split("-");
   return `${d}/${m}/${y}`;
 }
+
 function loadHistory() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_HISTORY) || "[]"); }
-  catch { return []; }
+  return Array.isArray(appData.history) ? appData.history : [];
 }
 function saveHistory(arr) {
-  localStorage.setItem(STORAGE_HISTORY, JSON.stringify(arr));
+  appData.history = Array.isArray(arr) ? arr : [];
+  // salva no banco (debounce)
+  persistUserData(false);
 }
+
 function loadDraft() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_DRAFT) || "null"); }
-  catch { return null; }
+  return appData.draft ?? null;
 }
 function saveDraft(draft) {
-  localStorage.setItem(STORAGE_DRAFT, JSON.stringify(draft));
+  appData.draft = draft ?? null;
+  persistUserData(false);
 }
 function clearDraft() {
-  localStorage.removeItem(STORAGE_DRAFT);
+  appData.draft = null;
+  persistUserData(false);
 }
+
+function salvarBuilder(){
+  appData.builder = builderState || null;
+  persistUserData(false);
+}
+function carregarBuilder(){
+  const obj = appData.builder;
+  if (obj && typeof obj === "object") {
+    builderState = { ...builderState, ...obj };
+  }
+}
+
+/* ===== Favoritos (⭐) ===== */
+function loadFavs(){
+  const f = appData.favs;
+  return (f && typeof f === "object") ? f : {};
+}
+function saveFavs(obj){
+  appData.favs = (obj && typeof obj === "object") ? obj : {};
+  persistUserData(false);
+}
+
+/* ===== Treinos salvos (montador) ===== */
+function loadSavedWorkouts(){
+  return Array.isArray(appData.savedWorkouts) ? appData.savedWorkouts : [];
+}
+function saveSavedWorkouts(arr){
+  appData.savedWorkouts = Array.isArray(arr) ? arr : [];
+  persistUserData(false);
+}
+
 
 /** Pega o último registro do exercício no histórico */
 function getUltimoRegistroExercicio(exNome) {
@@ -283,46 +537,6 @@ function montarBiblioteca(){
     return a.nome.localeCompare(b.nome, "pt-BR");
   });
 }
-
-function salvarBuilder(){
-  try { localStorage.setItem(STORAGE_BUILDER, JSON.stringify(builderState)); } catch {}
-}
-function carregarBuilder(){
-  try {
-    const raw = localStorage.getItem(STORAGE_BUILDER);
-    if (!raw) return;
-    const obj = JSON.parse(raw);
-    if (obj && typeof obj === "object") builderState = { ...builderState, ...obj };
-  } catch {}
-}
-
-/* ===== Favoritos (⭐) ===== */
-function loadFavs(){
-  try { return JSON.parse(localStorage.getItem(STORAGE_FAVS) || "{}"); }
-  catch { return {}; }
-}
-function saveFavs(obj){
-  try { localStorage.setItem(STORAGE_FAVS, JSON.stringify(obj || {})); } catch {}
-}
-function toggleFav(exId){
-  const favs = loadFavs();
-  favs[exId] = !favs[exId];
-  if (!favs[exId]) delete favs[exId];
-  saveFavs(favs);
-}
-
-/* ===== Treinos salvos (montador) ===== */
-function loadSavedWorkouts(){
-  try { return JSON.parse(localStorage.getItem(STORAGE_SAVED_WORKOUTS) || "[]"); }
-  catch { return []; }
-}
-function saveSavedWorkouts(arr){
-  try { localStorage.setItem(STORAGE_SAVED_WORKOUTS, JSON.stringify(arr || [])); } catch {}
-}
-function uid(){
-  return Math.random().toString(16).slice(2) + Date.now().toString(16);
-}
-
 
 window.abrirBiblioteca = function(){
   carregarBuilder();
@@ -1318,23 +1532,12 @@ window.fecharModalGif = function(){
   if (img) img.src = "";
 };
 
-/** Ao abrir, começa no HOME ✅ */
-(function init(){
-  carregarBuilder();
-  document.body.classList.add("mode-home");
-  document.body.classList.remove("mode-work");
-  document.body.classList.add("is-home");
-  document.body.classList.remove("is-workarea");
-  // Home hero: começa sem seleção
-  treinoSelecionadoHome = null;
-  const btn = document.getElementById("btnComecarTreino");
-  if (btn){ btn.classList.add("is-disabled"); btn.textContent = "🚀 Começar treino"; }
-  const lbl = document.getElementById("treinoSelecionadoLabel");
-  if (lbl) lbl.textContent = "Selecione um treino abaixo 👇";
-  el("home").style.display = "block";
-  el("workarea").style.display = "none";
-  setChipHome("Escolha um treino");
-  setBottomNavActive("home");
-  setFabsVisible({ save:false, top:false });
-  renderMiniChart();
+/** Ao abrir, checa LOGIN (Supabase) ✅ */
+(async function init(){
+  try {
+    await bootAuth();
+  } catch (e) {
+    console.error(e);
+    showAuth();
+  }
 })();
