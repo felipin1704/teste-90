@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="./style.css?v=20260212-1" />
 </head>
 
-<body class="mode-home">
+<body class="mode-auth">
   <div class="page">
 
     <header class="topbar">
@@ -27,6 +27,42 @@
         </div>
       </div>
     </header>
+
+
+    <!-- AUTH (LOGIN) -->
+    <section class="auth" id="auth" style="display:none;">
+      <div class="card auth-card">
+        <div class="auth-top">
+          <div>
+            <h2 class="h-title">🔐 Entrar</h2>
+            <p class="sub">Login seguro com email + senha (com confirmação por email).</p>
+          </div>
+        </div>
+
+        <div class="auth-form">
+          <label class="auth-label">Email</label>
+          <input id="authEmail" type="email" placeholder="seuemail@gmail.com" autocomplete="email" />
+
+          <label class="auth-label">Senha</label>
+          <input id="authPass" type="password" placeholder="••••••••" autocomplete="current-password" />
+
+          <div class="auth-actions">
+            <button class="btn primary" type="button" onclick="authLogin()">✅ Entrar</button>
+            <button class="btn" type="button" onclick="authSignup()">✨ Criar conta</button>
+            <button class="btn ghost" type="button" onclick="authLogout()">↩️ Sair</button>
+          </div>
+
+          <div class="auth-status" id="authStatus"></div>
+
+          <div class="auth-help">
+            <div>📩 <b>Primeiro acesso:</b> clique em <b>Criar conta</b> e confirme no email.</div>
+            <div>Depois volte e clique em <b>Entrar</b>.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
 
     <!-- HOME -->
     <section class="home" id="home">
@@ -161,6 +197,9 @@
       <span class="bn-ico">📊</span><span class="bn-txt">Histórico</span>
     </button>
   </nav>
+
+  <!-- ✅ Supabase (Auth + DB) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- ✅ cache-buster no script também -->
   <script defer src="./script.js?v=20260212-1"></script>
