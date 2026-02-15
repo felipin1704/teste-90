@@ -1062,34 +1062,10 @@ body.mode-home .page{ padding-top: 14px; }
 
 /* No builder, já escondemos a lista e a hero — mantém aqui por segurança */
 body.mode-builder .home-details{ display:none !important; }
-/* 🔥 Remove "Ver treinos completos" da Home */
-#btnVerTreinosCompletos,
-#verTreinosCompletos,
-#toggleTreinosCompletos,
-#toggleFullWorkouts,
-#listaTreinos,
-#treinosCompletos,
-.home-treinos-completos,
-.full-workouts,
-.treinos-completos,
-.ver-treinos-completos {
-  display: none !important;
-}
-/* 🔥 Remove completamente "Ver treinos completos" */
-button[onclick*="verTreinos"],
-button:has(span:contains("Ver treinos")),
-.ver-treinos-completos,
-.full-workouts,
-#btnVerTreinosCompletos,
-#toggleFullWorkouts,
-#verTreinosCompletos {
+/* ✅ Some COMPLETO "Ver treinos completos" (sem mexer no resto) */
+body.mode-home .home-details{
   display: none !important;
 }
 
-/* Caso esteja dentro de uma section */
-section:has(h2:contains("Ver treinos completos")),
-.home section:last-of-type {
-  display: none !important;
-}
 
 
