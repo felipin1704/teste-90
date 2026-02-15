@@ -2,213 +2,162 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ficha de Treino</title>
 
-  <!-- ✅ cache-buster: MUDA a cada atualização -->
-  <link rel="stylesheet" href="./style.css?v=20260212-1" />
+  <!-- Mantém seu CSS atual -->
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Se você usa fontes/ícones, pode manter aqui também -->
 </head>
 
-<body class="mode-auth">
-  <div class="page">
+<body>
+  <!-- ====== HOME / TELA INICIAL ====== -->
+  <main class="home" id="homeScreen">
 
-    <header class="topbar">
-      <div class="brand">
-        <div class="brand-text">
-          <h1>💪 Ficha de Treino</h1>
-          <p class="sub">Registre cargas, veja evolução e tenha sugestão automática de progressão.</p>
-        </div>
+    <!-- Topo com logo e frase -->
+    <section class="home-hero">
+      <div class="home-hero-left">
+        <!-- Troque o src pelo caminho real da sua logo -->
+        <img class="home-logo" src="assets/logo.png" alt="Felipin Treinos" />
       </div>
 
-      <div class="topbar-actions">
-        <div class="chip chip-accent">
-          <span class="chip-muted">Home</span>
-          <span class="chip-strong">Escolha um treino</span>
-        </div>
-      </div>
-    </header>
+      <div class="home-hero-right">
+        <h1 class="home-title">Escolha o treino</h1>
+        <p class="home-subtitle">Hoje é dia de evoluir. Um passo por vez.</p>
 
-
-    <!-- AUTH (LOGIN) -->
-    <section class="auth" id="auth" style="display:none;">
-      <div class="card auth-card">
-        <div class="auth-top">
-          <div>
-            <h2 class="h-title">🔐 Entrar</h2>
-            <p class="sub">Login seguro com email + senha (com confirmação por email).</p>
-          </div>
-        </div>
-
-        <div class="auth-form">
-          <label class="auth-label">Email</label>
-          <input id="authEmail" type="email" placeholder="seuemail@gmail.com" autocomplete="email" />
-
-          <label class="auth-label">Senha</label>
-          <input id="authPass" type="password" placeholder="••••••••" autocomplete="current-password" />
-
-          <div class="auth-actions">
-            <button class="btn primary" type="button" onclick="authLogin()">✅ Entrar</button>
-            <button class="btn" type="button" onclick="authSignup()">✨ Criar conta</button>
-            <button class="btn ghost" type="button" onclick="authLogout()">↩️ Sair</button>
-          </div>
-
-          <div class="auth-status" id="authStatus"></div>
-
-          <div class="auth-help">
-            <div>📩 <b>Primeiro acesso:</b> clique em <b>Criar conta</b> e confirme no email.</div>
-            <div>Depois volte e clique em <b>Entrar</b>.</div>
-          </div>
+        <div class="home-quotes" aria-label="Frases de inspiração">
+          <p class="quote">“Disciplina vence motivação.”</p>
+          <p class="quote">“Você não precisa ser perfeito, só consistente.”</p>
         </div>
       </div>
     </section>
 
+    <!-- ====== NOVO BLOCO: OBJETIVO / NÍVEL / TIPO (SUPERIOR/INFERIOR) ====== -->
+    <section class="home-config">
+      <h2 class="section-title">Escolha seu treino</h2>
+      <p class="section-hint">Defina seu objetivo, nível e se quer foco em superior ou inferior.</p>
 
+      <div class="config-grid">
+        <div class="config-field">
+          <label for="goalSelect">Objetivo</label>
+          <select id="goalSelect">
+            <option value="" selected disabled>Selecione um objetivo</option>
+            <option value="hipertrofia">Hipertrofia</option>
+            <option value="forca">Força</option>
+            <option value="emagrecimento">Emagrecimento</option>
+            <option value="resistencia">Resistência</option>
+          </select>
+        </div>
 
-    <!-- HOME -->
-    <section class="home" id="home">
-      <div class="home-hero">
-        <img class="hero-logo" src="./assets/logo.png" alt="Logo" onerror="this.style.display='none'">
-        <div class="hero-kicker">Escolha seu treino</div>
-        <div class="hero-pick" id="treinoSelecionadoLabel">Selecione um treino abaixo 👇</div>
-        <div class="hero-quote" id="fraseMotivacional">“Hoje é dia de evoluir.”</div>
+        <div class="config-field">
+          <label for="levelSelect">Nível</label>
+          <select id="levelSelect">
+            <option value="" selected disabled>Selecione um nível</option>
+            <option value="iniciante">Iniciante</option>
+            <option value="intermediario">Intermediário</option>
+            <option value="avancado">Avançado</option>
+          </select>
+        </div>
 
-        <button class="hero-btn is-disabled" id="btnComecarTreino" type="button" onclick="iniciarTreinoSelecionado()">
-          🚀 Começar treino
+        <div class="config-field">
+          <label for="focusSelect">Tipo</label>
+          <select id="focusSelect">
+            <option value="" selected disabled>Selecione o tipo</option>
+            <option value="superior">Superior</option>
+            <option value="inferior">Inferior</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="config-actions">
+        <button id="btnRecommend" class="btn primary">
+          Recomendar treino
         </button>
 
-        <button class="hero-btn hero-btn-secondary" id="btnAbrirBiblioteca" type="button" onclick="abrirBiblioteca()">
-          🧩 Montar treino do dia
+        <button id="btnClearPrefs" class="btn ghost" type="button">
+          Limpar seleção
         </button>
       </div>
 
-      <!-- BIBLIOTECA / MONTADOR -->
-      <section class="builder card" id="builder" aria-hidden="true">
-        <div class="builder-top">
-          <div>
-            <h2 class="builder-title">Biblioteca de Exercícios</h2>
-            <p class="builder-sub">Busque, filtre e selecione os exercícios do dia.</p>
-          </div>
-          <button class="btn ghost builder-close" type="button" onclick="fecharBiblioteca()">✖ Fechar</button>
-        </div>
-        <div class="builder-controls">
-          <input class="builder-search" id="builderSearch" type="text" placeholder="🔎 Buscar exercício (ex: supino, agachamento)"/>
-          <div class="builder-filters" id="builderFilters"></div>
-        </div>
-        <div class="builder-list" id="builderList"></div>
-        <div class="builder-bottom">
-          <div class="builder-count" id="builderCount">0 selecionados</div>
-          <div class="builder-actions">
-            <button class="btn" type="button" onclick="limparBiblioteca()">Limpar</button>
-            <button class="btn success" id="btnComecarMontado" type="button" onclick="comecarTreinoMontado()">🚀 Começar treino</button>
-          </div>
-        </div>
-      
-          <div class="builder-save">
-            <input class="builder-save-input" id="builderWorkoutName" type="text" placeholder="💾 Nome do treino (ex: Pernas A)"/>
-            <button class="btn primary" id="btnSalvarTreinoMontado" type="button" onclick="salvarTreinoMontado()">⭐ Salvar treino</button>
-          </div>
-          <div class="builder-saved" id="builderSavedWrap">
-            <div class="builder-saved-top">
-              <div class="builder-saved-title">Treinos salvos</div>
-              <button class="btn ghost" type="button" onclick="limparTreinosSalvos()">Limpar</button>
-            </div>
-            <div class="builder-saved-list" id="builderSavedList"></div>
-          </div>
-
-      </section>
-
-      <div class="home-grid" id="listaTreinos">
-        <button class="card train" data-treino="Inferior 1" type="button" onclick="selecionarTreino('Inferior 1')">
-          <div class="train-top"><h3>🦵 Treino Completo Inferior 1</h3><span class="arrow">→</span></div>
-          <p class="sub2">Quadríceps + glúteo</p>
-          <p class="meta">Registrar séries • Ver progresso • Sugestão de carga</p>
-        </button>
-
-        <button class="card train" data-treino="Superior 1" type="button" onclick="selecionarTreino('Superior 1')">
-          <div class="train-top"><h3>🏋️ Treino Completo Superior 1</h3><span class="arrow">→</span></div>
-          <p class="sub2">Peito + tríceps</p>
-          <p class="meta">Registrar séries • Ver progresso • Sugestão de carga</p>
-        </button>
-
-        <button class="card train" data-treino="Inferior 2" type="button" onclick="selecionarTreino('Inferior 2')">
-          <div class="train-top"><h3>🦵 Treino Completo Inferior 2</h3><span class="arrow">→</span></div>
-          <p class="sub2">Posterior + glúteo</p>
-          <p class="meta">Registrar séries • Ver progresso • Sugestão de carga</p>
-        </button>
-
-        <button class="card train" data-treino="Superior 2" type="button" onclick="selecionarTreino('Superior 2')">
-          <div class="train-top"><h3>🏋️ Treino Completo Superior 2</h3><span class="arrow">→</span></div>
-          <p class="sub2">Costas + bíceps</p>
-          <p class="meta">Registrar séries • Ver progresso • Sugestão de carga</p>
-        </button>
-      </div>
+      <div id="recommendResult" class="recommend-result" aria-live="polite"></div>
     </section>
 
-    <!-- WORKAREA -->
-    <section class="workarea" id="workarea">
-      <div class="card progresso" id="progressoGeral">
-        <div class="prog-top">
-          <div id="progressoTexto">Progresso: 0/0 séries</div>
-          <div id="progressoPct">0%</div>
-        </div>
-        <div class="prog-bar">
-          <div class="prog-fill" id="progressoFill" style="width:0%"></div>
-        </div>
-      </div>
+    <!-- ====== AÇÕES PRINCIPAIS ====== -->
+    <section class="home-actions">
+      <button id="btnStartWorkout" class="btn primary">
+        Começar treino
+      </button>
 
-      <div class="acoes" id="acoes">
-        <div class="acoes-left">
-          <button class="btn" type="button" onclick="salvarSessao()">💾 Salvar treino</button>
-          <button class="btn success" type="button" onclick="finalizarTreino()">✅ Finalizar</button>
-        </div>
-        <div class="acoes-right">
-          <div class="chip" id="volumeTotalChip">🔥 Volume do dia: 0 kg</div>
-          <canvas id="miniChart" class="mini-chart" width="220" height="64"></canvas>
-        </div>
-      </div>
+      <button id="btnBuildWorkout" class="btn secondary">
+        Monte seu treino
+      </button>
 
-      <div class="card cronometro" id="cronometro">
-        <div class="cron-top">
-          <div id="cronometroTexto">⏱️ Descanso: 0s</div>
-          <button class="btn ghost" type="button" onclick="pararDescanso()">✖ Parar</button>
-        </div>
-        <div class="prog-bar">
-          <div class="prog-fill" id="barraProgresso" style="width:0%"></div>
-        </div>
-      </div>
-
-      <main id="treino"></main>
-
-      <footer class="rodape">
-        <span>⚡ Dica: tente bater o topo da faixa de reps para subir a carga automaticamente.</span>
-      </footer>
+      <!-- ✅ NOVO BOTÃO: TREINO SALVO (abaixo do montar treino) -->
+      <button id="btnSavedWorkouts" class="btn tertiary">
+        Treino salvo
+      </button>
     </section>
 
-  </div>
+    <!-- Aqui NÃO tem mais “treino completo”, nem lista de treinos na home -->
+  </main>
 
-  <nav class="bottom-nav" id="bottomNav">
-    <button class="bn-item" id="bnHome" type="button" onclick="mostrarHome()">
-      <span class="bn-ico">🏠</span><span class="bn-txt">Home</span>
-    </button>
-    <button class="bn-item" id="bnTreino" type="button" onclick="voltarTreinoAtual()">
-      <span class="bn-ico">💪</span><span class="bn-txt">Treino</span>
-    </button>
-    <button class="bn-item" id="bnHist" type="button" onclick="verHistorico()">
-      <span class="bn-ico">📊</span><span class="bn-txt">Histórico</span>
-    </button>
-  </nav>
+  <!-- Mantém seu script atual -->
+  <script src="script.js"></script>
 
-  <!-- ✅ Supabase (Auth + DB) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- ✅ Script pequeno só pra salvar objetivo/nível/tipo sem quebrar seu script.js -->
+  <script>
+    (function () {
+      const goal = document.getElementById('goalSelect');
+      const level = document.getElementById('levelSelect');
+      const focus = document.getElementById('focusSelect');
+      const btnRecommend = document.getElementById('btnRecommend');
+      const btnClear = document.getElementById('btnClearPrefs');
+      const result = document.getElementById('recommendResult');
 
-  <!-- ✅ cache-buster no script também -->
-  <script defer src="./script.js?v=20260212-1"></script>
+      // Carrega preferências salvas
+      const saved = JSON.parse(localStorage.getItem('felipin_prefs') || '{}');
+      if (saved.goal) goal.value = saved.goal;
+      if (saved.level) level.value = saved.level;
+      if (saved.focus) focus.value = saved.focus;
 
-  <!-- ❌ IMPORTANTE: por enquanto NÃO registrar service worker (cache atrapalha muito) -->
-  <!-- <script>
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("./service-worker.js");
-    }
-  </script> -->
+      function savePrefs() {
+        const prefs = {
+          goal: goal.value || "",
+          level: level.value || "",
+          focus: focus.value || ""
+        };
+        localStorage.setItem('felipin_prefs', JSON.stringify(prefs));
+      }
+
+      [goal, level, focus].forEach(el => {
+        el.addEventListener('change', savePrefs);
+      });
+
+      btnRecommend.addEventListener('click', () => {
+        if (!goal.value || !level.value || !focus.value) {
+          result.textContent = "Escolha objetivo, nível e tipo (superior ou inferior) para recomendar.";
+          return;
+        }
+
+        // Regra simples (você pode trocar depois no script.js pela lógica real)
+        const labelGoal = goal.options[goal.selectedIndex].text;
+        const labelLevel = level.options[level.selectedIndex].text;
+        const labelFocus = focus.options[focus.selectedIndex].text;
+
+        result.textContent =
+          `Recomendação: ${labelFocus} • ${labelGoal} • ${labelLevel}. ` +
+          `Agora você pode clicar em “Começar treino” ou “Monte seu treino”.`;
+      });
+
+      btnClear.addEventListener('click', () => {
+        goal.selectedIndex = 0;
+        level.selectedIndex = 0;
+        focus.selectedIndex = 0;
+        localStorage.removeItem('felipin_prefs');
+        result.textContent = "";
+      });
+    })();
+  </script>
 </body>
 </html>
