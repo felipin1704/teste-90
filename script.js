@@ -1447,4 +1447,55 @@ window.fecharModalGif = function(){
   // primeira atualização
   setTimeout(updateCounts, 100);
 })();
+/* ===============================
+   🔢 CONTADOR DO BUILDER (TOTAL + SELECIONADOS)
+   =============================== */
+(function setupBuilderCounter(){
+  const builder = document.querySelector("#builder") || document.querySelector(".builder");
+  if(!builder) return;
+
+  // cria o chip do contador (se não existir)
+  function ensureCounterEl(){
+    let el = document.getElementById("builderCounter");
+    if(el) return el;
+
+    const top = builder.querySelector(".builder-top") || builder;
+    el = document.createElement("div");
+    el.id = "builderCounter";
+    el.className = "chip chip-muted";
+    el.style.marginTop = "8px";
+    top.appendChild(el);
+    return el;
+  }
+
+  function updateCounts(){
+    const el = ensureCounterEl();
+
+    const itens = builder.querySelectorAll(".ex-item");
+    const total = itens.length;
+
+    // conta selecionados pelo checkbox
+    const selecionados = builder.querySelectorAll(".ex-check:checked").length;
+
+    el.textContent = `${total} exercícios • ${selecionados} selecionados`;
+  }
+
+  // Atualiza sempre que clicar/selecionar
+  builder.addEventListener("change", (e)=>{
+    if(e.target && e.target.classList && e.target.classList.contains("ex-check")){
+      updateCounts();
+    }
+  });
+
+  // Atualiza quando a lista mudar (filtros/pesquisa)
+  const list = builder.querySelector(".builder-list");
+  if(list){
+    const obs = new MutationObserver(()=>updateCounts());
+    obs.observe(list, { childList:true, subtree:true });
+  }
+
+  // primeira atualização
+  setTimeout(updateCounts, 100);
+})();
+
 
