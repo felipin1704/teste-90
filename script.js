@@ -1101,6 +1101,12 @@ window.addEventListener("scroll", () => {
 }, { passive: true });
 
 window.carregarTreino = function(nomeTreino) {
+  if (!TREINOS[nomeTreino] || !Array.isArray(TREINOS[nomeTreino])) {
+    alert('Treino não encontrado (talvez você atualizou o projeto). Volte para a Home e escolha novamente.');
+    try { mostrarHome(); } catch {}
+    return;
+  }
+
   treinoAtual = nomeTreino;
 
   // ✅ entra na tela de treino
@@ -1118,6 +1124,8 @@ window.carregarTreino = function(nomeTreino) {
 };
 
 function criarDraftVazio(nomeTreino){
+  const base = TREINOS[nomeTreino];
+  if (!base || !Array.isArray(base)) return { data: hojeISO(), treino: nomeTreino, exercicios: [] };
   const data = hojeISO();
   const exercicios = TREINOS[nomeTreino].map(ex => ({
     nome: ex.nome,
@@ -1697,47 +1705,3 @@ window.fecharModalGif = function(){
   renderMiniChart();
 })();
 
-
-/* ===============================
-   🔥 PRO GRESSION SYSTEM (+2.5kg)
-   =============================== */
-
-const PROGRESSION_INCREMENT = 2.5;
-
-function getLastExerciseData(name){
-  const hist = JSON.parse(localStorage.getItem("historicoTreinos") || "[]");
-  for(let i = hist.length - 1; i >= 0; i--){
-    const ex = hist[i].exercicios?.find(e => e.nome === name);
-    if(ex) return ex;
-  }
-  return null;
-}
-
-function sugerirCarga(exName, atualPeso, repsBatidas, topoFaixa){
-  if(!atualPeso) return 0;
-  if(repsBatidas >= topoFaixa){
-    return parseFloat(atualPeso) + PROGRESSION_INCREMENT;
-  }
-  return atualPeso;
-}
-
-/* ===============================
-   🔁 ANTI-REPETIÇÃO AVANÇADA
-   =============================== */
-
-function filtrarExerciciosRecentes(lista, tipo){
-  const hist = JSON.parse(localStorage.getItem("historicoTreinos") || "[]");
-  const ultimos = hist
-    .filter(t => t.tipo === tipo)
-    .slice(-3)
-    .flatMap(t => t.exercicios.map(e => e.nome));
-  return lista.filter(ex => !ultimos.includes(ex.nome));
-}
-
-/* Hook para aplicar filtro automático ao gerar treino */
-const _gerarTreinoOriginal = window.gerarTreinoAutomatico;
-if(_gerarTreinoOriginal){
-  window.gerarTreinoAutomatico = function(...args){
-    _gerarTreinoOriginal.apply(this, args);
-  }
-}
