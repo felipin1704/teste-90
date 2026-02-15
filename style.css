@@ -990,3 +990,35 @@ body.mode-home .page{ padding-top: 14px; }
   gap: 12px;
   margin-top: 8px;
 }
+
+
+/* ===========================
+   AUTH (LOGIN SUPABASE) ✅
+   =========================== */
+.auth{ margin-top: 16px; }
+.auth-card{ max-width: 560px; margin: 0 auto; }
+.auth-top{ display:flex; justify-content:space-between; gap:12px; align-items:flex-start; flex-wrap:wrap; }
+.auth-form{ margin-top: 10px; display:flex; flex-direction:column; gap:10px; }
+.auth-label{ color: var(--muted); font-weight: 800; font-size: 12px; }
+.auth-actions{ display:flex; gap:10px; flex-wrap:wrap; margin-top: 6px; }
+.auth-status{ margin-top: 8px; color: var(--muted); font-weight: 800; }
+.auth-status.good{ color: rgba(34,197,94,.95); }
+.auth-status.bad{ color: rgba(239,68,68,.95); }
+.auth-help{
+  margin-top: 10px;
+  padding: 12px 12px;
+  border-radius: 18px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.03);
+  color: rgba(233,238,246,.75);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+/* Modos */
+body.mode-auth #auth{ display:block !important; }
+body.mode-auth #home{ display:none !important; }
+body.mode-auth #workarea{ display:none !important; }
+
+/* Esconder bottom-nav via classe */
+.bottom-nav.is-hidden{ display:none !important; }
