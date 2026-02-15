@@ -1075,4 +1075,21 @@ body.mode-builder .home-details{ display:none !important; }
 .ver-treinos-completos {
   display: none !important;
 }
+/* 🔥 Remove completamente "Ver treinos completos" */
+button[onclick*="verTreinos"],
+button:has(span:contains("Ver treinos")),
+.ver-treinos-completos,
+.full-workouts,
+#btnVerTreinosCompletos,
+#toggleFullWorkouts,
+#verTreinosCompletos {
+  display: none !important;
+}
+
+/* Caso esteja dentro de uma section */
+section:has(h2:contains("Ver treinos completos")),
+.home section:last-of-type {
+  display: none !important;
+}
+
 
