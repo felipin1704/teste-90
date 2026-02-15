@@ -1549,3 +1549,23 @@ window.fecharModalGif = function(){
     showAuth();
   }
 })();
+function iniciarTreinoAutomatico() {
+  const objetivo = document.getElementById("goalSelect").value;
+  const nivel = document.getElementById("levelSelect").value;
+  const tipo = document.getElementById("focusSelect").value;
+
+  console.log("Gerando treino:", objetivo, nivel, tipo);
+
+  alert(`Treino recomendado:
+  
+Tipo: ${tipo}
+Objetivo: ${objetivo}
+Nível: ${nivel}
+
+(Aqui podemos gerar o treino automaticamente depois)`);
+}
+
+function abrirTreinosSalvos() {
+  document.getElementById("builder").setAttribute("aria-hidden", "false");
+}
+
