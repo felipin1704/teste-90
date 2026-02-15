@@ -1114,6 +1114,37 @@ body.mode-history #home{
 
 /* para não ficar colado demais */
 .builder-list{ margin-top: 10px; }
+/* ✅ Builder: painel (ações + salvar + treinos salvos) em CIMA da lista */
+.builder{
+  display: flex;
+  flex-direction: column;
+}
+
+/* ordem dos blocos */
+.builder-top{ order: 1; }
+.builder-controls{ order: 2; }
+
+/* o “painel” (bottom + salvar + salvos) vai pra cima */
+.builder-bottom{ order: 3; }
+.builder-save{ order: 4; }
+.builder-saved{ order: 5; }
+
+/* a lista de exercícios desce */
+.builder-list{ order: 6; }
+
+/* ✅ deixa o painel “grudado” no topo quando rolar */
+.builder-bottom,
+.builder-save,
+.builder-saved{
+  position: sticky;
+  top: 10px;
+  z-index: 50;
+  backdrop-filter: blur(12px);
+}
+
+/* para não ficar colado demais */
+.builder-list{ margin-top: 10px; }
+
 
 
 
