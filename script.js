@@ -12,6 +12,283 @@ const STORAGE_BUILDER = "treino_builder_v1";
 const STORAGE_FAVS = "treino_favs_v1";
 const STORAGE_SAVED_WORKOUTS = "treino_saved_workouts_v1";
 const STORAGE_PREFS = "treino_prefs_v1";
+// ===========================
+// TREINO AUTOMÁTICO (Objetivo / Nível / Tipo) ✅
+// - Seleciona EXERCÍCIOS diferentes (não só muda séries)
+// - Evita repetir os últimos exercícios gerados
+// - Ajusta séries/reps/descanso pelo objetivo + nível
+// ===========================
+const STORAGE_AUTO_LAST = "treino_auto_last_v1";
+const STORAGE_AUTO_ROTATION = "treino_auto_rotation_v1";
+
+// Exercícios "compostos" (mais pesados) -> prioridade em Força/Hipertrofia
+const EX_COMPOSTOS = new Set([
+  "agachamento livre",
+  "levantamento terra",
+  "leg press",
+  "supino reto",
+  "supino inclinado",
+  "remada curvada",
+  "remada baixa",
+  "puxada na frente",
+  "desenvolvimento ombro",
+  "stiff-halteres",
+  "bulgaro"
+]);
+
+function cap(str){
+  const s = String(str||"").trim();
+  if (!s) return "";
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+function labelObjetivo(goal){
+  const g = String(goal||"").toLowerCase();
+  if (g === "forca") return "Força";
+  if (g === "emagrecimento") return "Emagrecimento";
+  return "Hipertrofia";
+}
+function labelNivel(level){
+  const l = String(level||"").toLowerCase();
+  if (l === "iniciante") return "Iniciante";
+  if (l === "avancado") return "Avançado";
+  return "Intermediário";
+}
+function labelTipo(focus){
+  const f = String(focus||"").toLowerCase();
+  return (f === "superior") ? "Superior" : "Inferior";
+}
+
+function shuffle(arr){
+  const a = arr.slice();
+  for (let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+function uniq(arr){
+  const set = new Set();
+  const out = [];
+  arr.forEach(x=>{
+    const k = String(x||"").trim().toLowerCase();
+    if (!k || set.has(k)) return;
+    set.add(k);
+    out.push(x);
+  });
+  return out;
+}
+
+function loadAutoRotation(){
+  try { return JSON.parse(localStorage.getItem(STORAGE_AUTO_ROTATION) || "{}"); }
+  catch { return {}; }
+}
+function saveAutoRotation(obj){
+  localStorage.setItem(STORAGE_AUTO_ROTATION, JSON.stringify(obj||{}));
+}
+function loadAutoLast(){
+  try { return JSON.parse(localStorage.getItem(STORAGE_AUTO_LAST) || "null"); }
+  catch { return null; }
+}
+function saveAutoLast(obj){
+  localStorage.setItem(STORAGE_AUTO_LAST, JSON.stringify(obj||null));
+}
+
+// Pega gif/meta pelo nome do exercício (usando a biblioteca existente)
+function getExMetaMap(){
+  const lib = montarBiblioteca();
+  const map = new Map();
+  lib.forEach(ex=>{
+    map.set(String(ex.nome||"").trim().toLowerCase(), ex);
+  });
+  return map;
+}
+
+// Escolhe quantos exercícios por nível/objetivo
+function qtdExercicios(goal, level){
+  const g = String(goal||"").toLowerCase();
+  const l = String(level||"").toLowerCase();
+  if (g === "forca"){
+    if (l === "iniciante") return 4;
+    if (l === "avancado") return 5;
+    return 5;
+  }
+  if (g === "emagrecimento"){
+    if (l === "iniciante") return 5;
+    if (l === "avancado") return 7;
+    return 6;
+  }
+  // hipertrofia
+  if (l === "iniciante") return 5;
+  if (l === "avancado") return 7;
+  return 6;
+}
+
+// Define séries/reps/descanso
+function parametrosEx(goal, level, nomeEx){
+  const g = String(goal||"").toLowerCase();
+  const l = String(level||"").toLowerCase();
+  const isComp = EX_COMPOSTOS.has(String(nomeEx||"").toLowerCase());
+
+  // defaults
+  let series = 3;
+  let repsAlvo = "8-12";
+  let descansoSeg = 75;
+
+  if (g === "forca"){
+    repsAlvo = isComp ? "3-6" : "6-8";
+    descansoSeg = isComp ? 180 : 120;
+    series = isComp ? 4 : 3;
+  } else if (g === "emagrecimento"){
+    repsAlvo = isComp ? "10-15" : "12-20";
+    descansoSeg = 45;
+    series = isComp ? 3 : 3;
+  } else { // hipertrofia
+    repsAlvo = isComp ? "6-10" : "10-15";
+    descansoSeg = isComp ? 90 : 60;
+    series = isComp ? 4 : 3;
+  }
+
+  // Ajuste por nível
+  if (l === "iniciante"){
+    // menos volume e mais controle
+    series = Math.max(2, series-1);
+    descansoSeg = Math.min(descansoSeg, g==="forca" ? 150 : 75);
+  }
+  if (l === "avancado"){
+    // um pouco mais de volume
+    series = Math.min(5, series+1);
+    // descanso mantém, mas não precisa aumentar
+  }
+
+  return { series, repsAlvo, descansoSeg };
+}
+
+// Pool por tipo e por objetivo (só com os exercícios que você já tem no app)
+function poolPorPrefs(goal, focus){
+  const g = String(goal||"").toLowerCase();
+  const f = String(focus||"").toLowerCase();
+
+  const superiorBase = [
+    "Supino reto",
+    "Supino inclinado",
+    "Puxada na frente",
+    "Remada baixa",
+    "Remada curvada",
+    "Desenvolvimento ombro",
+    "Elevação lateral",
+    "Rosca direta",
+    "Tríceps corda",
+    "Tríceps testa",
+  ];
+
+  const inferiorBase = [
+    "Agachamento livre",
+    "Leg press",
+    "Levantamento terra",
+    "stiff-halteres",
+    "bulgaro",
+    "Cadeira extensora",
+    "Mesa flexora",
+    "cadeira-abdutora",
+    "Panturrilha em pé",
+    "Panturrilha sentado",
+  ];
+
+  let pool = (f === "superior") ? superiorBase : inferiorBase;
+
+  // Ajuste do pool por objetivo (prioriza compostos em força e hipertrofia)
+  if (g === "forca"){
+    pool = (f === "superior")
+      ? ["Supino reto","Remada curvada","Puxada na frente","Desenvolvimento ombro","Supino inclinado","Remada baixa","Tríceps testa","Rosca direta"]
+      : ["Agachamento livre","Levantamento terra","Leg press","stiff-halteres","bulgaro","Cadeira extensora","Mesa flexora","Panturrilha em pé"];
+  } else if (g === "emagrecimento"){
+    pool = (f === "superior")
+      ? ["Puxada na frente","Remada baixa","Supino inclinado","Elevação lateral","Rosca direta","Tríceps corda","Supino reto","Remada curvada"]
+      : ["Leg press","bulgaro","Mesa flexora","Cadeira extensora","cadeira-abdutora","Panturrilha em pé","Agachamento livre","stiff-halteres"];
+  } else {
+    // hipertrofia (mix)
+    pool = (f === "superior")
+      ? ["Supino inclinado","Puxada na frente","Remada baixa","Desenvolvimento ombro","Elevação lateral","Rosca direta","Tríceps corda","Supino reto","Remada curvada","Tríceps testa"]
+      : ["Agachamento livre","Leg press","Cadeira extensora","Mesa flexora","bulgaro","stiff-halteres","cadeira-abdutora","Panturrilha em pé","Panturrilha sentado","Levantamento terra"];
+  }
+
+  return uniq(pool);
+}
+
+// Evita repetição: não usar exercícios que apareceram nas últimas gerações para aquela combinação
+function escolherExerciciosSemRepetir(goal, level, focus){
+  const key = `${String(goal||"").toLowerCase()}|${String(level||"").toLowerCase()}|${String(focus||"").toLowerCase()}`;
+  const rot = loadAutoRotation();
+  const recentes = (rot[key] || []).map(x=>String(x).toLowerCase());
+
+  const pool = poolPorPrefs(goal, focus);
+  const qtd = Math.min(qtdExercicios(goal, level), pool.length);
+
+  // 1) tenta pegar do pool excluindo recentes
+  const semRecentes = pool.filter(n => !recentes.includes(String(n).toLowerCase()));
+  let escolhidos = shuffle(semRecentes).slice(0, qtd);
+
+  // 2) se não deu, completa com o pool completo embaralhado
+  if (escolhidos.length < qtd){
+    const faltam = qtd - escolhidos.length;
+    const resto = shuffle(pool.filter(n => !escolhidos.map(x=>String(x).toLowerCase()).includes(String(n).toLowerCase())));
+    escolhidos = escolhidos.concat(resto.slice(0, faltam));
+  }
+
+  // Atualiza rotação (guarda os últimos 12 nomes)
+  rot[key] = (escolhidos.map(x=>String(x))).concat(rot[key] || []).slice(0, 12);
+  saveAutoRotation(rot);
+
+  return escolhidos;
+}
+
+// Gera um treino "Auto" e injeta no TREINOS
+function gerarTreinoAutomatico(prefs){
+  const goal = prefs.goal || "hipertrofia";
+  const level = prefs.level || "intermediario";
+  const focus = prefs.focus || "inferior";
+
+  const nomeTreino = `Auto • ${labelTipo(focus)} • ${labelObjetivo(goal)} • ${labelNivel(level)}`;
+
+  const metaMap = getExMetaMap();
+  const nomes = escolherExerciciosSemRepetir(goal, level, focus);
+
+  const exercicios = nomes.map(nomeEx => {
+    const meta = metaMap.get(String(nomeEx).trim().toLowerCase());
+    const p = parametrosEx(goal, level, nomeEx);
+    const gif = meta?.gif || "";
+    return mkEx(meta?.nome || nomeEx, p.series, p.repsAlvo, p.descansoSeg, gif);
+  });
+
+  TREINOS[nomeTreino] = exercicios;
+
+  // guarda para reconstruir após refresh
+  saveAutoLast({
+    nomeTreino,
+    data: hojeISO(),
+    prefs: { goal, level, focus },
+    exercicios: exercicios.map(e => ({
+      nome: e.nome,
+      series: e.series,
+      repsAlvo: e.repsAlvo,
+      descansoSeg: e.descansoSeg,
+      gif: e.gif || ""
+    }))
+  });
+
+  return nomeTreino;
+}
+
+// Recria o último treino automático ao abrir o app (evita erro se a pessoa voltar nele)
+function restaurarUltimoTreinoAutomatico(){
+  const last = loadAutoLast();
+  if (!last || !last.nomeTreino || !Array.isArray(last.exercicios)) return;
+  if (TREINOS[last.nomeTreino]) return;
+
+  TREINOS[last.nomeTreino] = last.exercicios.map(e => mkEx(
+    e.nome, Number(e.series)||3, String(e.repsAlvo||"8-12"), Number(e.descansoSeg)||60, e.gif||""
+  ));
+}
 
 let treinoAtual = null; // nome do treino
 let treinoDraft = null; // estado atual (inputs/checkbox)
@@ -133,6 +410,7 @@ function getHomePrefs(){
   return prefs;
 }
 function initHomePrefs(){
+  restaurarUltimoTreinoAutomatico();
   const prefs = loadPrefs();
   const goal = document.getElementById("goalSelect");
   const level = document.getElementById("levelSelect");
@@ -292,20 +570,14 @@ window.iniciarTreinoPrincipal = function(){
 window.iniciarTreinoAutomatico = function(){
   const prefs = getHomePrefs();
 
-  // Regra simples (sem apagar nada do seu app):
-  // - Tipo = Superior -> abre "Superior 1"
-  // - Tipo = Inferior -> abre "Inferior 1"
-  // (Depois, se você quiser, eu alterno 1/2 por semana/dia)
-  const tipo = (prefs.focus || "inferior").toLowerCase();
-  const recomendado = (tipo === "superior") ? "Superior 1" : "Inferior 1";
+  // ✅ gera um treino novo (com exercícios diferentes) baseado em Objetivo/Nível/Tipo
+  const recomendado = gerarTreinoAutomatico(prefs);
 
   // feedback na Home
   treinoSelecionadoHome = recomendado;
   const lbl = document.getElementById("treinoSelecionadoLabel");
   if (lbl){
-    const goalTxt = prefs.goal ? prefs.goal : "objetivo";
-    const lvlTxt = prefs.level ? prefs.level : "nível";
-    lbl.textContent = `Recomendado: ${recomendado} • ${goalTxt} • ${lvlTxt}`;
+    lbl.textContent = `Recomendado: ${recomendado}`;
   }
 
   carregarTreino(recomendado);
