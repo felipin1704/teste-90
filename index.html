@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>Ficha de Treino</title>
+
+  <!-- ✅ cache-buster: MUDA a cada atualização -->
+  <link rel="stylesheet" href="./style.css?v=20260212-1" />
+</head>
+
+<body class="mode-home">
+  <div class="page">
+
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-text">
+          <h1>💪 Ficha de Treino</h1>
+          <p class="sub">Registre cargas, veja evolução e tenha sugestão automática de progressão.</p>
+        </div>
+      </div>
+
+      <div class="topbar-actions">
+        <div class="chip chip-accent">
+          <span class="chip-muted">Home</span>
+          <span class="chip-strong">Escolha um treino</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- HOME -->
+    <section class="home" id="home">
+      <div class="home-hero">
+        <img class="hero-logo" src="./assets/logo.png" alt="Logo" onerror="this.style.display='none'">
+        <div class="hero-kicker">Escolha seu treino</div>
+        <div class="hero-pick" id="treinoSelecionadoLabel">Selecione um treino abaixo 👇</div>
+        <div class="hero-quote" id="fraseMotivacional">“Hoje é dia de evoluir.”</div>
+
+        <button class="hero-btn is-disabled" id="btnComecarTreino" type="button" onclick="iniciarTreinoSelecionado()">
+          🚀 Começar treino
+        </button>
+
+        <button class="hero-btn hero-btn-secondary" id="btnAbrirBiblioteca" type="button" onclick="abrirBiblioteca()">
+          🧩 Montar treino do dia
+        </button>
+      </div>
+
+      <!-- BIBLIOTECA / MONTADOR -->
+      <section class="builder card" id="builder" aria-hidden="true">
+        <div class="builder-top">
+          <div>
+            <h2 class="builder-title">Biblioteca de Exercícios</h2>
+            <p class="builder-sub">Busque, filtre e selecione os exercícios do dia.</p>
+          </div>
+          <button class="btn ghost builder-close" type="button" onclick="fecharBiblioteca()">✖ Fechar</button>
+        </div>
+        <div class="builder-controls">
+          <input class="builder-search" id="builderSearch" type="text" placeholder="🔎 Buscar exercício (ex: supino, agachamento)"/>
+          <div class="builder-filters" id="builderFilters"></div>
+        </div>
+        <div class="builder-list" id="builderList"></div>
+        <div class="builder-bottom">
+          <div class="builder-count" id="builderCount">0 selecionados</div>
+          <div class="builder-actions">
+            <button class="btn" type="button" onclick="limparBiblioteca()">Limpar</button>
+            <button class="btn success" id="btnComecarMontado" type="button" onclick="comecarTreinoMontado()">🚀 Começar treino</button>
+          </div>
+        </div>
+      
+          <div class="builder-save">
+            <input class="builder-save-input" id="builderWorkoutName" type="text" placeholder="💾 Nome do treino (ex: Pernas A)"/>
+            <button class="btn primary" id="btnSalvarTreinoMontado" type="button" onclick="salvarTreinoMontado()">⭐ Salvar treino</button>
+          </div>
+          <div class="builder-saved" id="builderSavedWrap">
+            <div class="builder-saved-top">
+              <div class="builder-saved-title">Treinos salvos</div>
+              <button class="btn ghost" type="button" onclick="limparTreinosSalvos()">Limpar</button>
+            </div>
+            <div class="builder-saved-list" id="builderSavedList"></div>
+          </div>
+
+      </section>
+
+      <div class="home-grid" id="listaTreinos">
+        <button class="card train" data-treino="Inferior 1" type="button" onclick="selecionarTreino('Inferior 1')">
+          <div class="train-top"><h3>🦵 Treino Completo Inferior 1</h3><span class="arrow">→</span></div>
+          <p class="sub2">Quadríceps + glúteo</p>
+          <p class="meta">Registrar séries • Ver progresso • Sugestão de carga</p>
+        </button>
+
+        <button class="card train" data-treino="Superior 1" type="button" onclick="selecionarTreino('Superior 1')">
+          <div class="train-top"><h3>🏋️ Treino Completo Superior 1</h3><span class="arrow">→</span></div>
+          <p class="sub2">Peito + tríceps</p>
+          <p class="meta">Registrar séries • Ver progresso • Sugestão de carga</p>
+        </button>
+
+        <button class="card train" data-treino="Inferior 2" type="button" onclick="selecionarTreino('Inferior 2')">
+          <div class="train-top"><h3>🦵 Treino Completo Inferior 2</h3><span class="arrow">→</span></div>
+          <p class="sub2">Posterior + glúteo</p>
+          <p class="meta">Registrar séries • Ver progresso • Sugestão de carga</p>
+        </button>
+
+        <button class="card train" data-treino="Superior 2" type="button" onclick="selecionarTreino('Superior 2')">
+          <div class="train-top"><h3>🏋️ Treino Completo Superior 2</h3><span class="arrow">→</span></div>
+          <p class="sub2">Costas + bíceps</p>
+          <p class="meta">Registrar séries • Ver progresso • Sugestão de carga</p>
+        </button>
+      </div>
+    </section>
+
+    <!-- WORKAREA -->
+    <section class="workarea" id="workarea">
+      <div class="card progresso" id="progressoGeral">
+        <div class="prog-top">
+          <div id="progressoTexto">Progresso: 0/0 séries</div>
+          <div id="progressoPct">0%</div>
+        </div>
+        <div class="prog-bar">
+          <div class="prog-fill" id="progressoFill" style="width:0%"></div>
+        </div>
+      </div>
+
+      <div class="acoes" id="acoes">
+        <div class="acoes-left">
+          <button class="btn" type="button" onclick="salvarSessao()">💾 Salvar treino</button>
+          <button class="btn success" type="button" onclick="finalizarTreino()">✅ Finalizar</button>
+        </div>
+        <div class="acoes-right">
+          <div class="chip" id="volumeTotalChip">🔥 Volume do dia: 0 kg</div>
+          <canvas id="miniChart" class="mini-chart" width="220" height="64"></canvas>
+        </div>
+      </div>
+
+      <div class="card cronometro" id="cronometro">
+        <div class="cron-top">
+          <div id="cronometroTexto">⏱️ Descanso: 0s</div>
+          <button class="btn ghost" type="button" onclick="pararDescanso()">✖ Parar</button>
+        </div>
+        <div class="prog-bar">
+          <div class="prog-fill" id="barraProgresso" style="width:0%"></div>
+        </div>
+      </div>
+
+      <main id="treino"></main>
+
+      <footer class="rodape">
+        <span>⚡ Dica: tente bater o topo da faixa de reps para subir a carga automaticamente.</span>
+      </footer>
+    </section>
+
+  </div>
+
+  <nav class="bottom-nav" id="bottomNav">
+    <button class="bn-item" id="bnHome" type="button" onclick="mostrarHome()">
+      <span class="bn-ico">🏠</span><span class="bn-txt">Home</span>
+    </button>
+    <button class="bn-item" id="bnTreino" type="button" onclick="voltarTreinoAtual()">
+      <span class="bn-ico">💪</span><span class="bn-txt">Treino</span>
+    </button>
+    <button class="bn-item" id="bnHist" type="button" onclick="verHistorico()">
+      <span class="bn-ico">📊</span><span class="bn-txt">Histórico</span>
+    </button>
+  </nav>
+
+  <!-- ✅ cache-buster no script também -->
+  <script defer src="./script.js?v=20260212-1"></script>
+
+  <!-- ❌ IMPORTANTE: por enquanto NÃO registrar service worker (cache atrapalha muito) -->
+  <!-- <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("./service-worker.js");
+    }
+  </script> -->
+</body>
+</html>
