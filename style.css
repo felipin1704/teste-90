@@ -1089,34 +1089,3 @@ body.mode-history #home{
 
 
 
-
-/* ===============================
-   ✨ PREMIUM ANIMATIONS
-   =============================== */
-
-.card, .train, .hero-btn{
-  transition: all .25s ease;
-}
-
-.card{
-  animation: fadeIn .35s ease;
-}
-
-@keyframes fadeIn{
-  from{ opacity:0; transform: translateY(6px); }
-  to{ opacity:1; transform: translateY(0); }
-}
-
-.ok{
-  animation: glowOk .6s ease;
-}
-
-@keyframes glowOk{
-  0%{ box-shadow:0 0 0 rgba(34,197,94,.0); }
-  50%{ box-shadow:0 0 18px rgba(34,197,94,.45); }
-  100%{ box-shadow:0 0 0 rgba(34,197,94,.0); }
-}
-
-.prog-fill{
-  transition: width .45s ease;
-}
