@@ -1,75 +1,67 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Ficha de Treino</title>
-
-  <link rel="stylesheet" href="./style.css?v=20260213-NEW" />
+  <link rel="stylesheet" href="style.css">
 </head>
 
 <body class="mode-home">
-  <div class="page">
 
-    <section class="home" id="home">
+  <section class="home">
 
-      <div class="home-hero">
+    <div class="home-card">
 
-        <div class="hero-kicker">Escolha seu treino</div>
+      <h1>Escolha seu treino</h1>
 
-        <!-- OBJETIVO -->
-        <div class="field">
-          <label>🎯 Objetivo</label>
-          <select id="goalSelect">
-            <option value="hipertrofia">Hipertrofia</option>
-            <option value="forca">Força</option>
-            <option value="emagrecimento">Emagrecimento</option>
-            <option value="resistencia">Resistência</option>
-          </select>
-        </div>
-
-        <!-- NIVEL -->
-        <div class="field">
-          <label>📈 Nível</label>
-          <select id="levelSelect">
-            <option value="iniciante">Iniciante</option>
-            <option value="intermediario" selected>Intermediário</option>
-            <option value="avancado">Avançado</option>
-          </select>
-        </div>
-
-        <!-- SUPERIOR / INFERIOR -->
-        <div class="field">
-          <label>🏋️ Tipo de treino</label>
-          <select id="focusSelect">
-            <option value="superior">Superior</option>
-            <option value="inferior">Inferior</option>
-          </select>
-        </div>
-
-        <div class="hero-quote" id="fraseMotivacional">
-          “Hoje é dia de evoluir.”
-        </div>
-
-        <button class="hero-btn" type="button" onclick="iniciarTreinoAutomatico()">
-          🚀 Começar treino
-        </button>
-
-        <button class="hero-btn hero-btn-secondary" type="button" onclick="abrirBiblioteca()">
-          🧩 Montar treino do dia
-        </button>
-
-        <!-- NOVO BOTÃO -->
-        <button class="hero-btn hero-btn-secondary" type="button" onclick="abrirTreinosSalvos()">
-          ⭐ Treino salvo
-        </button>
-
+      <div class="field">
+        <label>🎯 Objetivo</label>
+        <select id="goalSelect">
+          <option value="hipertrofia">Hipertrofia</option>
+          <option value="forca">Força</option>
+          <option value="emagrecimento">Emagrecimento</option>
+          <option value="resistencia">Resistência</option>
+        </select>
       </div>
 
-    </section>
+      <div class="field">
+        <label>📈 Nível</label>
+        <select id="levelSelect">
+          <option value="iniciante">Iniciante</option>
+          <option value="intermediario">Intermediário</option>
+          <option value="avancado">Avançado</option>
+        </select>
+      </div>
 
-  </div>
+      <div class="field">
+        <label>🏋️ Tipo</label>
+        <select id="focusSelect">
+          <option value="superior">Superior</option>
+          <option value="inferior">Inferior</option>
+        </select>
+      </div>
 
-  <script src="./script.js?v=20260213-NEW"></script>
+      <div class="frase">
+        “Hoje é dia de evoluir.”
+      </div>
+
+      <button class="btn primary" onclick="iniciarTreinoAutomatico()">
+        🚀 Começar treino
+      </button>
+
+      <button class="btn secondary" onclick="montarTreino()">
+        🧩 Montar treino do dia
+      </button>
+
+      <button class="btn secondary" onclick="abrirTreinosSalvos()">
+        ⭐ Treino salvo
+      </button>
+
+    </div>
+
+  </section>
+
+<script src="script.js"></script>
 </body>
 </html>
