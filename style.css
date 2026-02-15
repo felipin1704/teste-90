@@ -1066,6 +1066,25 @@ body.mode-builder .home-details{ display:none !important; }
 body.mode-home .home-details{
   display: none !important;
 }
+/* ✅ No celular: esconder a TOPBAR no modo treino/histórico (fica só a barra inferior) */
+@media (max-width: 720px){
+  body.mode-work .topbar,
+  body.mode-history .topbar{
+    display: none !important;
+  }
+
+  body.mode-work .page,
+  body.mode-history .page{
+    margin-top: 14px !important;
+  }
+}
+
+/* ✅ Garantia extra: Home nunca aparece junto com o Treino */
+body.mode-work #home,
+body.mode-history #home{
+  display: none !important;
+}
+
 
 
 
