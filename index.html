@@ -1,163 +1,77 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ficha de Treino</title>
+<main class="screen home-screen" id="homeScreen">
 
-  <!-- Mantém seu CSS atual -->
-  <link rel="stylesheet" href="style.css" />
-
-  <!-- Se você usa fontes/ícones, pode manter aqui também -->
-</head>
-
-<body>
-  <!-- ====== HOME / TELA INICIAL ====== -->
-  <main class="home" id="homeScreen">
-
-    <!-- Topo com logo e frase -->
-    <section class="home-hero">
-      <div class="home-hero-left">
-        <!-- Troque o src pelo caminho real da sua logo -->
-        <img class="home-logo" src="assets/logo.png" alt="Felipin Treinos" />
+  <section class="home-card">
+    <div class="home-top">
+      <div class="ig-handle">
+        <span class="ig-dot">●</span>
+        <span>@FELIPEE_S2</span>
       </div>
+    </div>
 
-      <div class="home-hero-right">
-        <h1 class="home-title">Escolha o treino</h1>
-        <p class="home-subtitle">Hoje é dia de evoluir. Um passo por vez.</p>
+    <h1 class="home-title">Escolha seu treino</h1>
 
-        <div class="home-quotes" aria-label="Frases de inspiração">
-          <p class="quote">“Disciplina vence motivação.”</p>
-          <p class="quote">“Você não precisa ser perfeito, só consistente.”</p>
-        </div>
-      </div>
-    </section>
+    <!-- Objetivo -->
+    <div class="field">
+      <div class="field-label">🎯 Objetivo</div>
+      <select id="goalSelect" class="field-select">
+        <option value="hipertrofia" selected>Hipertrofia</option>
+        <option value="forca">Força</option>
+        <option value="emagrecimento">Emagrecimento</option>
+        <option value="resistencia">Resistência</option>
+      </select>
+    </div>
 
-    <!-- ====== NOVO BLOCO: OBJETIVO / NÍVEL / TIPO (SUPERIOR/INFERIOR) ====== -->
-    <section class="home-config">
-      <h2 class="section-title">Escolha seu treino</h2>
-      <p class="section-hint">Defina seu objetivo, nível e se quer foco em superior ou inferior.</p>
+    <!-- Nível -->
+    <div class="field">
+      <div class="field-label">📈 Nível</div>
+      <select id="levelSelect" class="field-select">
+        <option value="iniciante">Iniciante</option>
+        <option value="intermediario" selected>Intermediário</option>
+        <option value="avancado">Avançado</option>
+      </select>
+    </div>
 
-      <div class="config-grid">
-        <div class="config-field">
-          <label for="goalSelect">Objetivo</label>
-          <select id="goalSelect">
-            <option value="" selected disabled>Selecione um objetivo</option>
-            <option value="hipertrofia">Hipertrofia</option>
-            <option value="forca">Força</option>
-            <option value="emagrecimento">Emagrecimento</option>
-            <option value="resistencia">Resistência</option>
-          </select>
-        </div>
-
-        <div class="config-field">
-          <label for="levelSelect">Nível</label>
-          <select id="levelSelect">
-            <option value="" selected disabled>Selecione um nível</option>
-            <option value="iniciante">Iniciante</option>
-            <option value="intermediario">Intermediário</option>
-            <option value="avancado">Avançado</option>
-          </select>
+    <!-- Card métricas -->
+    <div class="stats-card">
+      <div class="stats-row">
+        <div class="stats-left">
+          <div class="stat-item">📅 <strong>Semana</strong></div>
+          <div class="stat-item">🔥 <strong>Volume</strong></div>
+          <div class="stat-item">🏁 <strong>Meta (treinos)</strong></div>
         </div>
 
-        <div class="config-field">
-          <label for="focusSelect">Tipo</label>
-          <select id="focusSelect">
-            <option value="" selected disabled>Selecione o tipo</option>
-            <option value="superior">Superior</option>
-            <option value="inferior">Inferior</option>
-          </select>
+        <div class="stats-right">
+          <div class="stat-value" id="weekValue">--</div>
+          <div class="stat-value" id="volumeValue">--</div>
+          <div class="meta-pill">
+            <input id="goalWorkouts" type="number" min="1" value="4" />
+          </div>
         </div>
       </div>
 
-      <div class="config-actions">
-        <button id="btnRecommend" class="btn primary">
-          Recomendar treino
-        </button>
-
-        <button id="btnClearPrefs" class="btn ghost" type="button">
-          Limpar seleção
-        </button>
+      <div class="progress-wrap">
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+        </div>
       </div>
+    </div>
 
-      <div id="recommendResult" class="recommend-result" aria-live="polite"></div>
-    </section>
+    <div class="home-hint">Selecione um treino abaixo 👇</div>
 
-    <!-- ====== AÇÕES PRINCIPAIS ====== -->
-    <section class="home-actions">
-      <button id="btnStartWorkout" class="btn primary">
-        Começar treino
-      </button>
+    <div class="quote-pill" id="quotePill">"Hoje é dia de evoluir."</div>
 
-      <button id="btnBuildWorkout" class="btn secondary">
-        Monte seu treino
-      </button>
+    <button id="btnStartWorkout" class="btn big primary">
+      🚀 <span>Começar treino</span>
+    </button>
 
-      <!-- ✅ NOVO BOTÃO: TREINO SALVO (abaixo do montar treino) -->
-      <button id="btnSavedWorkouts" class="btn tertiary">
-        Treino salvo
-      </button>
-    </section>
+    <button id="btnBuildWorkout" class="btn big secondary">
+      🧩 <span>Montar treino do dia</span>
+    </button>
 
-    <!-- Aqui NÃO tem mais “treino completo”, nem lista de treinos na home -->
-  </main>
+    <!-- ✅ SEU NOVO BOTÃO -->
+    <button id="btnSavedWorkouts" class="btn big tertiary">
+      ⭐ <span>Treino salvo</span>
+    </button>
+  </section>
 
-  <!-- Mantém seu script atual -->
-  <script src="script.js"></script>
-
-  <!-- ✅ Script pequeno só pra salvar objetivo/nível/tipo sem quebrar seu script.js -->
-  <script>
-    (function () {
-      const goal = document.getElementById('goalSelect');
-      const level = document.getElementById('levelSelect');
-      const focus = document.getElementById('focusSelect');
-      const btnRecommend = document.getElementById('btnRecommend');
-      const btnClear = document.getElementById('btnClearPrefs');
-      const result = document.getElementById('recommendResult');
-
-      // Carrega preferências salvas
-      const saved = JSON.parse(localStorage.getItem('felipin_prefs') || '{}');
-      if (saved.goal) goal.value = saved.goal;
-      if (saved.level) level.value = saved.level;
-      if (saved.focus) focus.value = saved.focus;
-
-      function savePrefs() {
-        const prefs = {
-          goal: goal.value || "",
-          level: level.value || "",
-          focus: focus.value || ""
-        };
-        localStorage.setItem('felipin_prefs', JSON.stringify(prefs));
-      }
-
-      [goal, level, focus].forEach(el => {
-        el.addEventListener('change', savePrefs);
-      });
-
-      btnRecommend.addEventListener('click', () => {
-        if (!goal.value || !level.value || !focus.value) {
-          result.textContent = "Escolha objetivo, nível e tipo (superior ou inferior) para recomendar.";
-          return;
-        }
-
-        // Regra simples (você pode trocar depois no script.js pela lógica real)
-        const labelGoal = goal.options[goal.selectedIndex].text;
-        const labelLevel = level.options[level.selectedIndex].text;
-        const labelFocus = focus.options[focus.selectedIndex].text;
-
-        result.textContent =
-          `Recomendação: ${labelFocus} • ${labelGoal} • ${labelLevel}. ` +
-          `Agora você pode clicar em “Começar treino” ou “Monte seu treino”.`;
-      });
-
-      btnClear.addEventListener('click', () => {
-        goal.selectedIndex = 0;
-        level.selectedIndex = 0;
-        focus.selectedIndex = 0;
-        localStorage.removeItem('felipin_prefs');
-        result.textContent = "";
-      });
-    })();
-  </script>
-</body>
-</html>
+</main>
