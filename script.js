@@ -1453,5 +1453,265 @@ window.iniciarTreinoPrincipal = function () {
   } else {
     alert("Erro ao iniciar treino. Função não encontrada.");
   }
+};// =====================================================
+// TREINO INTELIGENTE: MUDA EXERCÍCIOS POR OBJETIVO ✅
+// - Usa a Biblioteca (inclui EXTRAS) e não repete sempre
+// - Cria "Treino do dia" (não depende de TREINOS fixos)
+// =====================================================
+const STORAGE_LAST_PICK = "treino_last_pick_v1";
+
+// pega lista completa da biblioteca (já existe no seu script)
+function getLibAll(){
+  return montarBiblioteca(); // já existe no seu app
+}
+
+function seedKey(goal, level, focus){
+  return `${goal}|${level}|${focus}`;
+}
+
+function loadLastPick(key){
+  try { return JSON.parse(localStorage.getItem(STORAGE_LAST_PICK) || "{}")[key] || []; }
+  catch { return []; }
+}
+function saveLastPick(key, arr){
+  try {
+    const all = JSON.parse(localStorage.getItem(STORAGE_LAST_PICK) || "{}");
+    all[key] = arr || [];
+    localStorage.setItem(STORAGE_LAST_PICK, JSON.stringify(all));
+  } catch {}
+}
+
+function shuffle(arr){
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function pickOne(pool, { prefer = [], avoid = [], notIn = [] } = {}){
+  const last = new Set(notIn.map(s => String(s).toLowerCase()));
+
+  // filtra
+  const ok = pool.filter(ex => {
+    const n = String(ex.nome || "").toLowerCase();
+    if (last.has(n)) return false;
+    if (avoid.some(rx => rx.test(n))) return false;
+    return true;
+  });
+
+  // tenta primeiro pelos preferidos
+  for (const rx of prefer){
+    const hits = ok.filter(ex => rx.test(String(ex.nome||"").toLowerCase()));
+    if (hits.length) return shuffle(hits)[0];
+  }
+
+  // senão aleatório
+  return ok.length ? shuffle(ok)[0] : null;
+}
+
+function normalizeEx(ex){
+  return {
+    nome: ex.nome,
+    series: ex.series,
+    repsAlvo: ex.repsAlvo,
+    descansoSeg: ex.descansoSeg,
+    gif: ex.gif || ""
+  };
+}
+
+function applyGoalTuning(ex, goal){
+  const e = { ...ex };
+
+  if (goal === "forca"){
+    // força: menos reps, mais descanso
+    e.repsAlvo = "4-6";
+    e.descansoSeg = Math.max(75, (e.descansoSeg || 60) + 30);
+    // séries um pouco maiores em compostos
+    e.series = Math.min(5, Math.max(3, e.series || 3));
+  }
+
+  if (goal === "hipertrofia"){
+    // clássico: reps médias
+    e.repsAlvo = "8-12";
+    e.descansoSeg = Math.max(45, (e.descansoSeg || 60));
+    e.series = Math.min(4, Math.max(3, e.series || 3));
+  }
+
+  if (goal === "emagrecimento"){
+    // mais reps, descanso menor (metabólico)
+    e.repsAlvo = "12-15";
+    e.descansoSeg = Math.max(30, (e.descansoSeg || 60) - 15);
+    e.series = Math.min(4, Math.max(2, e.series || 3));
+  }
+
+  return e;
+}
+
+// monta um "template" de padrões por foco/objetivo/nível
+function buildPlan({ focus, goal, level }){
+  const isAdv = level === "avancado";
+  const isBeg = level === "iniciante";
+
+  // regex helpers (bem tolerantes)
+  const RX = {
+    squat: /(agach|hack|sissy|smith)/,
+    pressLeg: /(leg press)/,
+    hinge: /(terra|stiff|good morning)/,
+    glute: /(glute|glúteo|eleva[cç][aã]o p[ée]lvica|hip thrust|bridge)/,
+    quadIso: /(extensora)/,
+    hamIso: /(flexora|mesa flexora|nordic)/,
+    abductor: /(abdutor|abdu[cç][aã]o)/,
+    calf: /(panturrilha)/,
+
+    press: /(supino|peck|crucifixo|cross over)/,
+    vPull: /(puxada|barra fixa|pullover)/,
+    row: /(remada)/,
+    shoulder: /(desenvolvimento|eleva[cç][aã]o lateral|eleva[cç][aã]o frontal|face pull|arnold)/,
+    biceps: /(rosca)/,
+    triceps: /(tr[íi]ceps)/,
+
+    core: /(abdominal|prancha)/,
+    cardio: /(box jump|slam ball|kettlebell swing)/,
+  };
+
+  // quantidade por objetivo
+  const qtd =
+    goal === "forca" ? (isAdv ? 5 : 4) :
+    goal === "emagrecimento" ? 6 :
+    5; // hipertrofia
+
+  if (focus === "inferior"){
+    // iniciante prefere máquinas, avançado prefere livres
+    const mainSquatPrefer = isBeg ? [RX.pressLeg, RX.squat] : [RX.squat, RX.pressLeg];
+    const hingePrefer = isBeg ? [RX.hinge] : [RX.hinge];
+    const glutePrefer = isBeg ? [RX.glute, RX.abductor] : [RX.glute, RX.abductor];
+
+    const blocks = [
+      { prefer: mainSquatPrefer },  // agacho/leg
+      { prefer: hingePrefer },      // terra/stiff
+      { prefer: [RX.quadIso] },     // extensora
+      { prefer: [RX.hamIso] },      // flexora
+      { prefer: [RX.calf] },        // panturrilha
+    ];
+
+    if (qtd >= 6) blocks.splice(4, 0, { prefer: glutePrefer }); // + glúteo/abdutor
+
+    // força: corta isoladores e foca compostos
+    if (goal === "forca"){
+      return [
+        { prefer: mainSquatPrefer },
+        { prefer: hingePrefer },
+        { prefer: [RX.glute, RX.abductor, RX.hamIso] },
+        { prefer: [RX.calf] },
+        ...(isAdv ? [{ prefer: [RX.quadIso, RX.hamIso] }] : [])
+      ].slice(0, qtd);
+    }
+
+    return blocks.slice(0, qtd);
+  }
+
+  // SUPERIOR
+  const pressPrefer = isBeg ? [/(supino reto|peck deck|crucifixo)/, RX.press] : [RX.press];
+  const vPullPrefer = isBeg ? [/(puxada)/, RX.vPull] : [RX.vPull];
+  const rowPrefer = isBeg ? [/(remada baixa|unilateral)/, RX.row] : [RX.row];
+  const shoulderPrefer = [RX.shoulder];
+
+  const blocks = [
+    { prefer: pressPrefer },    // empurrar (peito)
+    { prefer: vPullPrefer },    // puxada vertical
+    { prefer: rowPrefer },      // remada
+    { prefer: shoulderPrefer }, // ombro
+    { prefer: [RX.triceps, RX.biceps] }, // braços
+  ];
+
+  if (qtd >= 6) blocks.push({ prefer: [RX.core, RX.cardio] }); // + metabólico/core
+
+  // força: menos isoladores
+  if (goal === "forca"){
+    return [
+      { prefer: pressPrefer },
+      { prefer: vPullPrefer },
+      { prefer: rowPrefer },
+      { prefer: shoulderPrefer },
+      ...(isAdv ? [{ prefer: [RX.triceps, RX.biceps] }] : [])
+    ].slice(0, qtd);
+  }
+
+  return blocks.slice(0, qtd);
+}
+
+function montarTreinoInteligente({ goal, level, focus }){
+  const lib = getLibAll();
+  const pool = lib.filter(ex => ex.cat === (focus === "inferior" ? "Inferior" : "Superior") || ex.cat === "Geral");
+
+  const key = seedKey(goal, level, focus);
+  const lastPick = loadLastPick(key); // nomes usados na última vez
+  const chosen = [];
+  const chosenNames = [];
+
+  const plan = buildPlan({ goal, level, focus });
+
+  for (const step of plan){
+    const pick = pickOne(pool, { prefer: step.prefer || [], avoid: step.avoid || [], notIn: chosenNames.concat(lastPick) });
+    if (pick){
+      const ex = applyGoalTuning(normalizeEx(pick), goal);
+      chosen.push(ex);
+      chosenNames.push(String(ex.nome).toLowerCase());
+    }
+  }
+
+  // fallback: se por algum motivo faltou exercício, completa aleatório
+  while (chosen.length < plan.length){
+    const pick = pickOne(pool, { notIn: chosenNames.concat(lastPick) });
+    if (!pick) break;
+    const ex = applyGoalTuning(normalizeEx(pick), goal);
+    chosen.push(ex);
+    chosenNames.push(String(ex.nome).toLowerCase());
+  }
+
+  // salva pra não repetir na próxima
+  saveLastPick(key, chosenNames);
+
+  return chosen;
+}
+
+// ✅ versão final: objetivo muda EXERCÍCIOS + reps/descanso
+window.iniciarTreinoPrincipal = function(){
+  const goal  = document.getElementById("goalSelect")?.value;
+  const level = document.getElementById("levelSelect")?.value;
+  const focus = document.getElementById("focusSelect")?.value;
+
+  if (!goal || !level || !focus){
+    alert("Selecione objetivo, nível e tipo.");
+    return;
+  }
+
+  const exercicios = montarTreinoInteligente({ goal, level, focus });
+  if (!exercicios.length){
+    alert("Não consegui montar o treino. (Biblioteca vazia?)");
+    return;
+  }
+
+  treinoAtual = "Treino do dia";
+  entrarWorkarea(treinoAtual);
+
+  treinoDraft = {
+    data: hojeISO(),
+    treino: treinoAtual,
+    exercicios: exercicios.map(ex => ({
+      nome: ex.nome,
+      repsAlvo: ex.repsAlvo,
+      descansoSeg: ex.descansoSeg,
+      gif: ex.gif || "",
+      series: Array.from({ length: ex.series }).map(() => ({ peso:null, reps:null, ok:false }))
+    }))
+  };
+
+  saveDraft(treinoDraft);
+  renderTreino();
 };
+
+
 
