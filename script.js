@@ -387,9 +387,16 @@ window.abrirBiblioteca = function(){
   carregarBuilder();
   builderState.aberto = true;
 
+  // abre como MODAL (overlay)
   document.body.classList.remove("mode-home","mode-work");
   document.body.classList.add("mode-builder");
+  document.body.classList.add("builder-lock");
 
+  // acessibilidade
+  const modal = document.getElementById("builderModal");
+  if (modal) modal.setAttribute("aria-hidden", "false");
+
+  // mantém Home por trás, mas some Workarea
   el("home").style.display = "block";
   el("workarea").style.display = "none";
 
@@ -403,10 +410,31 @@ window.fecharBiblioteca = function(){
   builderState.aberto = false;
   document.body.classList.remove("mode-builder","mode-work");
   document.body.classList.add("mode-home");
+  document.body.classList.remove("builder-lock");
+
+  const modal = document.getElementById("builderModal");
+  if (modal) modal.setAttribute("aria-hidden", "true");
   renderBiblioteca(false);
   salvarBuilder();
   window.scrollTo({ top: 0, behavior: "smooth" });
 };
+
+// Abre direto na seção de "Treinos salvos" (botão da Home)
+window.abrirTreinosSalvos = function(){
+  window.abrirBiblioteca();
+  setTimeout(() => {
+    const alvo = document.getElementById("builderSavedWrap");
+    if (alvo) alvo.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, 50);
+};
+
+// Fecha ao clicar no fundo do modal
+window.addEventListener("click", (e) => {
+  const modal = document.getElementById("builderModal");
+  if (!modal) return;
+  if (!document.body.classList.contains("mode-builder")) return;
+  if (e.target === modal) window.fecharBiblioteca();
+});
 
 window.limparBiblioteca = function(){
   builderState.selecionados = {};
@@ -1397,105 +1425,3 @@ window.fecharModalGif = function(){
   setFabsVisible({ save:false, top:false });
   renderMiniChart();
 })();
-/* ===============================
-   🔢 CONTADOR DO BUILDER (TOTAL + SELECIONADOS)
-   =============================== */
-(function setupBuilderCounter(){
-  const builder = document.querySelector("#builder") || document.querySelector(".builder");
-  if(!builder) return;
-
-  // cria o chip do contador (se não existir)
-  function ensureCounterEl(){
-    let el = document.getElementById("builderCounter");
-    if(el) return el;
-
-    const top = builder.querySelector(".builder-top") || builder;
-    el = document.createElement("div");
-    el.id = "builderCounter";
-    el.className = "chip chip-muted";
-    el.style.marginTop = "8px";
-    top.appendChild(el);
-    return el;
-  }
-
-  function updateCounts(){
-    const el = ensureCounterEl();
-
-    const itens = builder.querySelectorAll(".ex-item");
-    const total = itens.length;
-
-    // conta selecionados pelo checkbox
-    const selecionados = builder.querySelectorAll(".ex-check:checked").length;
-
-    el.textContent = `${total} exercícios • ${selecionados} selecionados`;
-  }
-
-  // Atualiza sempre que clicar/selecionar
-  builder.addEventListener("change", (e)=>{
-    if(e.target && e.target.classList && e.target.classList.contains("ex-check")){
-      updateCounts();
-    }
-  });
-
-  // Atualiza quando a lista mudar (filtros/pesquisa)
-  const list = builder.querySelector(".builder-list");
-  if(list){
-    const obs = new MutationObserver(()=>updateCounts());
-    obs.observe(list, { childList:true, subtree:true });
-  }
-
-  // primeira atualização
-  setTimeout(updateCounts, 100);
-})();
-/* ===============================
-   🔢 CONTADOR DO BUILDER (TOTAL + SELECIONADOS)
-   =============================== */
-(function setupBuilderCounter(){
-  const builder = document.querySelector("#builder") || document.querySelector(".builder");
-  if(!builder) return;
-
-  // cria o chip do contador (se não existir)
-  function ensureCounterEl(){
-    let el = document.getElementById("builderCounter");
-    if(el) return el;
-
-    const top = builder.querySelector(".builder-top") || builder;
-    el = document.createElement("div");
-    el.id = "builderCounter";
-    el.className = "chip chip-muted";
-    el.style.marginTop = "8px";
-    top.appendChild(el);
-    return el;
-  }
-
-  function updateCounts(){
-    const el = ensureCounterEl();
-
-    const itens = builder.querySelectorAll(".ex-item");
-    const total = itens.length;
-
-    // conta selecionados pelo checkbox
-    const selecionados = builder.querySelectorAll(".ex-check:checked").length;
-
-    el.textContent = `${total} exercícios • ${selecionados} selecionados`;
-  }
-
-  // Atualiza sempre que clicar/selecionar
-  builder.addEventListener("change", (e)=>{
-    if(e.target && e.target.classList && e.target.classList.contains("ex-check")){
-      updateCounts();
-    }
-  });
-
-  // Atualiza quando a lista mudar (filtros/pesquisa)
-  const list = builder.querySelector(".builder-list");
-  if(list){
-    const obs = new MutationObserver(()=>updateCounts());
-    obs.observe(list, { childList:true, subtree:true });
-  }
-
-  // primeira atualização
-  setTimeout(updateCounts, 100);
-})();
-
-
