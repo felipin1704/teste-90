@@ -1126,3 +1126,113 @@ body.mode-history #home{
 @media (max-width: 720px){
   .train:hover{ transform: none; }
 }
+/* ==============================
+   🔥 UI PREMIUM UPGRADE
+   ============================== */
+
+/* Fundo com luz no topo */
+body{
+  background:
+    radial-gradient(circle at 50% -10%, rgba(59,130,246,.18), transparent 40%),
+    linear-gradient(180deg, #060607 0%, #0b0b0c 50%, #050506 100%);
+}
+
+/* Cards mais premium */
+.card{
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,.08);
+  box-shadow:
+    0 8px 30px rgba(0,0,0,.45),
+    inset 0 1px 0 rgba(255,255,255,.04);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.card:hover{
+  transform: translateY(-2px);
+  box-shadow:
+    0 12px 40px rgba(0,0,0,.55),
+    inset 0 1px 0 rgba(255,255,255,.06);
+}
+
+/* Cabeçalho do exercício */
+.card-top{
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  padding-bottom: 8px;
+  margin-bottom: 6px;
+}
+
+/* Nome do exercício maior */
+.titulo{
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: .3px;
+}
+
+/* Badges mais bonitos */
+.badge{
+  font-weight: 800;
+  letter-spacing: .2px;
+}
+
+/* Séries mais modernas */
+.serie{
+  background: linear-gradient(
+    180deg,
+    rgba(255,255,255,.05),
+    rgba(255,255,255,.02)
+  );
+  border: 1px solid rgba(255,255,255,.08);
+  transition: border .15s ease, transform .1s ease;
+}
+
+.serie:hover{
+  border-color: rgba(59,130,246,.35);
+  transform: scale(1.01);
+}
+
+/* Inputs mais clean */
+input{
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.08);
+  font-weight: 600;
+  transition: border .15s ease, box-shadow .15s ease;
+}
+
+input:focus{
+  border-color: rgba(59,130,246,.55);
+  box-shadow: 0 0 0 3px rgba(59,130,246,.18);
+}
+
+/* Botão OK mais forte */
+.ok{
+  background: linear-gradient(180deg, #22c55e, #16a34a);
+  border: none;
+}
+
+/* Botão descanso mais elegante */
+.rest{
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.12);
+}
+
+/* Progresso com brilho */
+.prog-fill{
+  box-shadow: 0 0 12px rgba(59,130,246,.45);
+}
+
+/* Animação suave ao carregar treino */
+.workarea{
+  animation: fadeInWork .35s ease;
+}
+
+@keyframes fadeInWork{
+  from{
+    opacity:0;
+    transform: translateY(10px);
+  }
+  to{
+    opacity:1;
+    transform: translateY(0);
+  }
+}
+
