@@ -1670,3 +1670,4 @@ window.iniciarTreinoPrincipal = function(){
   saveDraft(treinoDraft);
   renderTreino();
 };
+
