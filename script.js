@@ -1425,3 +1425,33 @@ window.fecharModalGif = function(){
   setFabsVisible({ save:false, top:false });
   renderMiniChart();
 })();
+// ===============================
+// INICIAR TREINO PRINCIPAL (HOME)
+// ===============================
+window.iniciarTreinoPrincipal = function () {
+  const goal = document.getElementById("goalSelect")?.value;
+  const level = document.getElementById("levelSelect")?.value;
+  const focus = document.getElementById("focusSelect")?.value;
+
+  if (!goal || !level || !focus) {
+    alert("Selecione objetivo, nível e tipo.");
+    return;
+  }
+
+  let treinoNome = "";
+
+  // 🔥 LÓGICA INTELIGENTE
+  if (focus === "inferior") {
+    treinoNome = level === "avancado" ? "Inferior 2" : "Inferior 1";
+  } else {
+    treinoNome = level === "avancado" ? "Superior 2" : "Superior 1";
+  }
+
+  // chama sistema que você já tem
+  if (typeof carregarTreino === "function") {
+    carregarTreino(treinoNome);
+  } else {
+    alert("Erro ao iniciar treino. Função não encontrada.");
+  }
+};
+
