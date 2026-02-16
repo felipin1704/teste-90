@@ -263,7 +263,9 @@ window.selecionarTreino = function(nomeTreino){
 
   // marca visualmente
   document.querySelectorAll("#listaTreinos .train").forEach(btn => {
-    btn.classList.toggle("is-selected", btn.dataset.treino === nomeTreino);
+    const ativo = btn.dataset.treino === nomeTreino;
+    btn.classList.toggle("is-selected", ativo);
+    btn.setAttribute("aria-pressed", ativo ? "true" : "false");
   });
 
   // atualiza label e botão
@@ -1425,55 +1427,24 @@ window.fecharModalGif = function(){
   setFabsVisible({ save:false, top:false });
   renderMiniChart();
 })();
-// ===============================
-// INICIAR TREINO PRINCIPAL (HOME)
-// ===============================
-window.iniciarTreinoPrincipal = function () {
-  const goal = document.getElementById("goalSelect")?.value;
-  const level = document.getElementById("levelSelect")?.value;
-  const focus = document.getElementById("focusSelect")?.value;
 
-  if (!goal || !level || !focus) {
-    alert("Selecione objetivo, nível e tipo.");
-    return;
-  }
 
-  let treinoNome = "";
+/* =====================================================
+   TREINO INTELIGENTE (Objetivo/Nível/Tipo) ✅
+   - muda exercícios (não só reps/descanso)
+   - evita repetir sempre os mesmos
+   - cria "Treino do dia" sem depender dos TREINOS fixos
+   ===================================================== */
 
-  // 🔥 LÓGICA INTELIGENTE
-  if (focus === "inferior") {
-    treinoNome = level === "avancado" ? "Inferior 2" : "Inferior 1";
-  } else {
-    treinoNome = level === "avancado" ? "Superior 2" : "Superior 1";
-  }
-
-  // chama sistema que você já tem
-  if (typeof carregarTreino === "function") {
-    carregarTreino(treinoNome);
-  } else {
-    alert("Erro ao iniciar treino. Função não encontrada.");
-  }
-};// =====================================================
-// TREINO INTELIGENTE: MUDA EXERCÍCIOS POR OBJETIVO ✅
-// - Usa a Biblioteca (inclui EXTRAS) e não repete sempre
-// - Cria "Treino do dia" (não depende de TREINOS fixos)
-// =====================================================
 const STORAGE_LAST_PICK = "treino_last_pick_v1";
 
-// pega lista completa da biblioteca (já existe no seu script)
-function getLibAll(){
-  return montarBiblioteca(); // já existe no seu app
-}
+function _seedKey(goal, level, focus){ return `${goal}|${level}|${focus}`; }
 
-function seedKey(goal, level, focus){
-  return `${goal}|${level}|${focus}`;
-}
-
-function loadLastPick(key){
-  try { return JSON.parse(localStorage.getItem(STORAGE_LAST_PICK) || "{}")[key] || []; }
+function _loadLastPick(key){
+  try { return (JSON.parse(localStorage.getItem(STORAGE_LAST_PICK) || "{}")[key]) || []; }
   catch { return []; }
 }
-function saveLastPick(key, arr){
+function _saveLastPick(key, arr){
   try {
     const all = JSON.parse(localStorage.getItem(STORAGE_LAST_PICK) || "{}");
     all[key] = arr || [];
@@ -1481,7 +1452,7 @@ function saveLastPick(key, arr){
   } catch {}
 }
 
-function shuffle(arr){
+function _shuffle(arr){
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--){
     const j = Math.floor(Math.random() * (i + 1));
@@ -1490,71 +1461,46 @@ function shuffle(arr){
   return a;
 }
 
-function pickOne(pool, { prefer = [], avoid = [], notIn = [] } = {}){
-  const last = new Set(notIn.map(s => String(s).toLowerCase()));
-
-  // filtra
+function _pick(pool, { prefer=[], avoid=[], notIn=[] } = {}){
+  const used = new Set((notIn||[]).map(s => String(s).toLowerCase()));
   const ok = pool.filter(ex => {
-    const n = String(ex.nome || "").toLowerCase();
-    if (last.has(n)) return false;
+    const n = String(ex.nome||"").toLowerCase();
+    if (used.has(n)) return false;
     if (avoid.some(rx => rx.test(n))) return false;
     return true;
   });
 
-  // tenta primeiro pelos preferidos
   for (const rx of prefer){
     const hits = ok.filter(ex => rx.test(String(ex.nome||"").toLowerCase()));
-    if (hits.length) return shuffle(hits)[0];
+    if (hits.length) return _shuffle(hits)[0];
   }
-
-  // senão aleatório
-  return ok.length ? shuffle(ok)[0] : null;
+  return ok.length ? _shuffle(ok)[0] : null;
 }
 
-function normalizeEx(ex){
-  return {
-    nome: ex.nome,
-    series: ex.series,
-    repsAlvo: ex.repsAlvo,
-    descansoSeg: ex.descansoSeg,
-    gif: ex.gif || ""
-  };
-}
-
-function applyGoalTuning(ex, goal){
+function _tunePorObjetivo(ex, goal){
   const e = { ...ex };
 
   if (goal === "forca"){
-    // força: menos reps, mais descanso
     e.repsAlvo = "4-6";
     e.descansoSeg = Math.max(75, (e.descansoSeg || 60) + 30);
-    // séries um pouco maiores em compostos
     e.series = Math.min(5, Math.max(3, e.series || 3));
-  }
-
-  if (goal === "hipertrofia"){
-    // clássico: reps médias
+  } else if (goal === "emagrecimento"){
+    e.repsAlvo = "12-15";
+    e.descansoSeg = Math.max(30, (e.descansoSeg || 60) - 15);
+    e.series = Math.min(4, Math.max(2, e.series || 3));
+  } else { // hipertrofia
     e.repsAlvo = "8-12";
     e.descansoSeg = Math.max(45, (e.descansoSeg || 60));
     e.series = Math.min(4, Math.max(3, e.series || 3));
   }
 
-  if (goal === "emagrecimento"){
-    // mais reps, descanso menor (metabólico)
-    e.repsAlvo = "12-15";
-    e.descansoSeg = Math.max(30, (e.descansoSeg || 60) - 15);
-    e.series = Math.min(4, Math.max(2, e.series || 3));
-  }
-
   return e;
 }
 
-// monta um "template" de padrões por foco/objetivo/nível
-function buildPlan({ focus, goal, level }){
+function _plan({ focus, goal, level }){
   const isAdv = level === "avancado";
   const isBeg = level === "iniciante";
 
-  // regex helpers (bem tolerantes)
   const RX = {
     squat: /(agach|hack|sissy|smith)/,
     pressLeg: /(leg press)/,
@@ -1576,108 +1522,120 @@ function buildPlan({ focus, goal, level }){
     cardio: /(box jump|slam ball|kettlebell swing)/,
   };
 
-  // quantidade por objetivo
   const qtd =
     goal === "forca" ? (isAdv ? 5 : 4) :
     goal === "emagrecimento" ? 6 :
-    5; // hipertrofia
+    5;
 
   if (focus === "inferior"){
-    // iniciante prefere máquinas, avançado prefere livres
-    const mainSquatPrefer = isBeg ? [RX.pressLeg, RX.squat] : [RX.squat, RX.pressLeg];
-    const hingePrefer = isBeg ? [RX.hinge] : [RX.hinge];
-    const glutePrefer = isBeg ? [RX.glute, RX.abductor] : [RX.glute, RX.abductor];
-
+    const mainPrefer = isBeg ? [RX.pressLeg, RX.squat] : [RX.squat, RX.pressLeg];
     const blocks = [
-      { prefer: mainSquatPrefer },  // agacho/leg
-      { prefer: hingePrefer },      // terra/stiff
-      { prefer: [RX.quadIso] },     // extensora
-      { prefer: [RX.hamIso] },      // flexora
-      { prefer: [RX.calf] },        // panturrilha
+      { prefer: mainPrefer },      // agacho/leg
+      { prefer: [RX.hinge] },      // hinge
+      { prefer: [RX.quadIso] },    // quadríceps
+      { prefer: [RX.hamIso] },     // posterior
+      { prefer: [RX.calf] },       // panturrilha
     ];
-
-    if (qtd >= 6) blocks.splice(4, 0, { prefer: glutePrefer }); // + glúteo/abdutor
-
-    // força: corta isoladores e foca compostos
+    if (qtd >= 6) blocks.splice(4, 0, { prefer: [RX.glute, RX.abductor] }); // + glúteo/abdutor
     if (goal === "forca"){
       return [
-        { prefer: mainSquatPrefer },
-        { prefer: hingePrefer },
+        { prefer: mainPrefer },
+        { prefer: [RX.hinge] },
         { prefer: [RX.glute, RX.abductor, RX.hamIso] },
         { prefer: [RX.calf] },
         ...(isAdv ? [{ prefer: [RX.quadIso, RX.hamIso] }] : [])
       ].slice(0, qtd);
     }
-
     return blocks.slice(0, qtd);
   }
 
-  // SUPERIOR
+  // superior
   const pressPrefer = isBeg ? [/(supino reto|peck deck|crucifixo)/, RX.press] : [RX.press];
   const vPullPrefer = isBeg ? [/(puxada)/, RX.vPull] : [RX.vPull];
-  const rowPrefer = isBeg ? [/(remada baixa|unilateral)/, RX.row] : [RX.row];
-  const shoulderPrefer = [RX.shoulder];
+  const rowPrefer   = isBeg ? [/(remada baixa|unilateral)/, RX.row] : [RX.row];
 
   const blocks = [
-    { prefer: pressPrefer },    // empurrar (peito)
-    { prefer: vPullPrefer },    // puxada vertical
-    { prefer: rowPrefer },      // remada
-    { prefer: shoulderPrefer }, // ombro
-    { prefer: [RX.triceps, RX.biceps] }, // braços
+    { prefer: pressPrefer },
+    { prefer: vPullPrefer },
+    { prefer: rowPrefer },
+    { prefer: [RX.shoulder] },
+    { prefer: [RX.triceps, RX.biceps] },
   ];
+  if (qtd >= 6) blocks.push({ prefer: [RX.core, RX.cardio] });
 
-  if (qtd >= 6) blocks.push({ prefer: [RX.core, RX.cardio] }); // + metabólico/core
-
-  // força: menos isoladores
   if (goal === "forca"){
     return [
       { prefer: pressPrefer },
       { prefer: vPullPrefer },
       { prefer: rowPrefer },
-      { prefer: shoulderPrefer },
+      { prefer: [RX.shoulder] },
       ...(isAdv ? [{ prefer: [RX.triceps, RX.biceps] }] : [])
     ].slice(0, qtd);
   }
-
   return blocks.slice(0, qtd);
 }
 
 function montarTreinoInteligente({ goal, level, focus }){
-  const lib = getLibAll();
-  const pool = lib.filter(ex => ex.cat === (focus === "inferior" ? "Inferior" : "Superior") || ex.cat === "Geral");
+  const lib = montarBiblioteca(); // sua biblioteca completa (treinos + extras)
+  const pool = lib.filter(ex => {
+    if (focus === "inferior") return ex.cat === "Inferior" || ex.cat === "Geral";
+    return ex.cat === "Superior" || ex.cat === "Geral";
+  });
 
-  const key = seedKey(goal, level, focus);
-  const lastPick = loadLastPick(key); // nomes usados na última vez
+  const key = _seedKey(goal, level, focus);
+  const lastPick = _loadLastPick(key);
+
   const chosen = [];
   const chosenNames = [];
 
-  const plan = buildPlan({ goal, level, focus });
+  const steps = _plan({ goal, level, focus });
 
-  for (const step of plan){
-    const pick = pickOne(pool, { prefer: step.prefer || [], avoid: step.avoid || [], notIn: chosenNames.concat(lastPick) });
-    if (pick){
-      const ex = applyGoalTuning(normalizeEx(pick), goal);
-      chosen.push(ex);
-      chosenNames.push(String(ex.nome).toLowerCase());
+  steps.forEach(step => {
+    const ex = _pick(pool, { prefer: step.prefer || [], avoid: step.avoid || [], notIn: chosenNames.concat(lastPick) });
+    if (ex){
+      const tuned = _tunePorObjetivo({
+        nome: ex.nome,
+        series: ex.series,
+        repsAlvo: ex.repsAlvo,
+        descansoSeg: ex.descansoSeg,
+        gif: ex.gif || ""
+      }, goal);
+      chosen.push(tuned);
+      chosenNames.push(String(tuned.nome).toLowerCase());
     }
+  });
+
+  // completa se faltar
+  while (chosen.length < steps.length){
+    const ex = _pick(pool, { notIn: chosenNames.concat(lastPick) });
+    if (!ex) break;
+    const tuned = _tunePorObjetivo({
+      nome: ex.nome,
+      series: ex.series,
+      repsAlvo: ex.repsAlvo,
+      descansoSeg: ex.descansoSeg,
+      gif: ex.gif || ""
+    }, goal);
+    chosen.push(tuned);
+    chosenNames.push(String(tuned.nome).toLowerCase());
   }
 
-  // fallback: se por algum motivo faltou exercício, completa aleatório
-  while (chosen.length < plan.length){
-    const pick = pickOne(pool, { notIn: chosenNames.concat(lastPick) });
-    if (!pick) break;
-    const ex = applyGoalTuning(normalizeEx(pick), goal);
-    chosen.push(ex);
-    chosenNames.push(String(ex.nome).toLowerCase());
-  }
-
-  // salva pra não repetir na próxima
-  saveLastPick(key, chosenNames);
-
+  _saveLastPick(key, chosenNames);
   return chosen;
 }
 
-// ✅ versão final: objetivo muda EXERCÍCIOS + reps/descanso
+// Botão principal da Home (recomendado):
+// - se tiver um card selecionado, começa aquele treino
+// - se não tiver, monta um treino inteligente pelo objetivo/nível/tipo
+window.iniciarTreinoHome = function(){
+  if (treinoSelecionadoHome){
+    window.iniciarTreinoSelecionado();
+    return;
+  }
+  window.iniciarTreinoPrincipal();
+};
+
+// Começar treino pelo objetivo/nível/tipo (Treino do dia)
 window.iniciarTreinoPrincipal = function(){
   const goal  = document.getElementById("goalSelect")?.value;
   const level = document.getElementById("levelSelect")?.value;
@@ -1712,6 +1670,3 @@ window.iniciarTreinoPrincipal = function(){
   saveDraft(treinoDraft);
   renderTreino();
 };
-
-
-
