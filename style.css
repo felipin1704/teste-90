@@ -1089,3 +1089,40 @@ body.mode-history #home{
 
 
 
+
+
+/* ===========================
+   SELEÇÃO DE TREINO (mais visível) ✅
+   - deixa MUITO claro quando clicou
+   - inclui etiqueta "Selecionado"
+   =========================== */
+.train{ position: relative; }
+
+.train.is-selected{
+  outline: 2px solid rgba(59,130,246,.95) !important;
+  border-color: rgba(59,130,246,.85) !important;
+  background: rgba(59,130,246,.22) !important;
+  box-shadow:
+    0 0 0 4px rgba(59,130,246,.18),
+    0 18px 50px rgba(0,0,0,.45) !important;
+  transform: translateY(-2px) !important;
+}
+
+.train.is-selected::after{
+  content: "✅ Selecionado";
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  border: 1px solid rgba(59,130,246,.55);
+  background: rgba(59,130,246,.26);
+  color: rgba(233,238,246,.95);
+}
+
+/* Mobile: evita hover enganar e melhora toque */
+@media (max-width: 720px){
+  .train:hover{ transform: none; }
+}
