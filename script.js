@@ -12,50 +12,36 @@ const STORAGE_BUILDER = "treino_builder_v1";
 const STORAGE_FAVS = "treino_favs_v1";
 const STORAGE_SAVED_WORKOUTS = "treino_saved_workouts_v1";
 
-
 let treinoAtual = null; // nome do treino
 let treinoDraft = null; // estado atual (inputs/checkbox)
-
-/** ==========================
- *  DESCANSO (persistente) ✅
- *  - não para ao bloquear o celular / trocar de tela
- *  - calcula pelo relógio (Date.now) e salva no localStorage
- *  ========================== */
-const STORAGE_REST = "treino_rest_v1";
 let descansoInterval = null;
 
-function loadRest(){
-  try { return JSON.parse(localStorage.getItem(STORAGE_REST) || "null"); }
-  catch { return null; }
+// 🔊 Som quando o descanso acaba (coloque o arquivo em: assets/audio/beep.wav)
+const somDescanso = new Audio("./assets/audio/beep.wav");
+somDescanso.preload = "auto";
+
+// ✅ iPhone/Safari: libera áudio após a 1ª interação do usuário
+let audioLiberado = false;
+function liberarAudioUmaVez(){
+  if (audioLiberado) return;
+  audioLiberado = true;
+  try {
+    somDescanso.volume = 1;
+    somDescanso.currentTime = 0;
+    // play/pause rápido para “destravar” o áudio no iOS
+    const p = somDescanso.play();
+    if (p && typeof p.then === "function") {
+      p.then(() => { somDescanso.pause(); somDescanso.currentTime = 0; }).catch(() => {});
+    } else {
+      somDescanso.pause();
+      somDescanso.currentTime = 0;
+    }
+  } catch {}
+  window.removeEventListener("pointerdown", liberarAudioUmaVez);
+  window.removeEventListener("touchstart", liberarAudioUmaVez);
 }
-function saveRest(obj){
-  localStorage.setItem(STORAGE_REST, JSON.stringify(obj));
-}
-function clearRest(){
-  localStorage.removeItem(STORAGE_REST);
-}
-function playBeepSoft(){
-  // ✅ Beep via WebAudio (não “rouba” o áudio do Spotify/YouTube como <audio>.play costuma fazer no celular)
-  try{
-    const Ctx = window.AudioContext || window.webkitAudioContext;
-    if (!Ctx) return;
-    const ctx = new Ctx();
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type = "sine";
-    o.frequency.value = 880;
-    g.gain.value = 0.0001;
-    o.connect(g);
-    g.connect(ctx.destination);
-    o.start();
-    const t0 = ctx.currentTime;
-    // envelope curtinho
-    g.gain.exponentialRampToValueAtTime(0.08, t0 + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.18);
-    o.stop(t0 + 0.20);
-    o.onended = () => { try{ ctx.close(); }catch{} };
-  }catch{}
-}
+window.addEventListener("pointerdown", liberarAudioUmaVez, { once: true });
+window.addEventListener("touchstart", liberarAudioUmaVez, { once: true });
 
 /** Ajuste aqui seus treinos/exercícios
  *  Coloque seus GIFs em: assets/gifs/
@@ -272,6 +258,61 @@ let treinoSelecionadoHome = null; // seleção na tela inicial
 
 let builderState = { aberto:false, filtro:"Todos", busca:"", selecionados:{}, ordem:[] };
 
+/* ===========================
+   DIA DA SEMANA (Builder) ✅
+   - Abre um modal antes de montar o treino
+   - Salva o treino vinculado ao dia
+   =========================== */
+
+let builderDiaSelecionado = null;
+
+function setBuilderDia(dia){
+  builderDiaSelecionado = (dia === null || dia === undefined || dia === "") ? null : String(dia);
+  const label = document.getElementById("builderSelectedDay");
+  if (!label) return;
+  if (!builderDiaSelecionado){
+    label.style.display = "none";
+    label.textContent = "";
+    return;
+  }
+  label.style.display = "inline-flex";
+  label.textContent = `📅 Dia selecionado: ${builderDiaSelecionado}`;
+}
+
+window.abrirSelecaoDiaBuilder = function(){
+  // abre modal de dias antes de abrir a biblioteca
+  const modal = document.getElementById("dayModal");
+  if (!modal){
+    // fallback: se por algum motivo o modal não existir, abre direto
+    window.abrirBiblioteca();
+    return;
+  }
+  modal.classList.add("is-open");
+  modal.setAttribute("aria-hidden","false");
+};
+
+window.fecharSelecaoDiaBuilder = function(){
+  const modal = document.getElementById("dayModal");
+  if (!modal) return;
+  modal.classList.remove("is-open");
+  modal.setAttribute("aria-hidden","true");
+};
+
+window.selecionarDiaBuilder = function(dia){
+  setBuilderDia(dia);
+  window.fecharSelecaoDiaBuilder();
+  window.abrirBiblioteca();
+};
+
+// fecha modal clicando fora do card
+window.addEventListener("click", (e) => {
+  const modal = document.getElementById("dayModal");
+  if (!modal) return;
+  if (!modal.classList.contains("is-open")) return;
+  if (e.target === modal) window.fecharSelecaoDiaBuilder();
+});
+
+
 window.selecionarTreino = function(nomeTreino){
   treinoSelecionadoHome = nomeTreino;
 
@@ -416,6 +457,7 @@ window.abrirBiblioteca = function(){
   el("home").style.display = "block";
   el("workarea").style.display = "none";
 
+  setBuilderDia(builderDiaSelecionado);
   renderBiblioteca(true);
   renderTreinosSalvos();
   salvarBuilder();
@@ -617,7 +659,7 @@ window.comecarTreinoMontado = function(){
     return;
   }
 
-  treinoAtual = "Treino do dia";
+  treinoAtual = builderDiaSelecionado ? `Treino do dia (${builderDiaSelecionado})` : "Treino do dia";
   entrarWorkarea(treinoAtual);
 
   treinoDraft = {
@@ -659,15 +701,23 @@ window.salvarTreinoMontado = function(){
     return;
   }
 
+  const dia = builderDiaSelecionado; // ✅ vincula ao dia (pode ser null)
   const saved = loadSavedWorkouts();
-  // se já existe com mesmo nome, substitui
-  const idx = saved.findIndex(s => String(s.nome).toLowerCase() === nome.toLowerCase());
+
+  // ✅ se já existe com mesmo nome + mesmo dia, substitui
+  const idx = saved.findIndex(s =>
+    String(s.nome || "").toLowerCase() === nome.toLowerCase() &&
+    (s.dia ?? null) === (dia ?? null)
+  );
+
   const item = {
     id: (idx >= 0 ? saved[idx].id : uid()),
     nome,
+    dia,
     ids: idsOrdenados,
     createdAt: Date.now()
   };
+
   if (idx >= 0) saved[idx] = item;
   else saved.unshift(item);
 
@@ -694,10 +744,12 @@ function renderTreinosSalvos(){
     const card = document.createElement("div");
     card.className = "saved-card";
     const qtd = Array.isArray(s.ids) ? s.ids.length : 0;
+    const diaTxt = (s.dia ?? null) ? String(s.dia) : "Sem dia";
+
     card.innerHTML = `
       <div>
         <div class="saved-name">⭐ ${escapeHtml(s.nome || "Treino")}</div>
-        <div class="saved-meta">${qtd} exercícios • toque em “Carregar”</div>
+        <div class="saved-meta"><span class="saved-day">📅 ${escapeHtml(diaTxt)}</span> • ${qtd} exercícios • toque em “Carregar”</div>
       </div>
       <div class="saved-actions">
         <button class="small-btn primary" type="button">Carregar</button>
@@ -719,6 +771,9 @@ function carregarTreinoSalvo(id, iniciar){
   const saved = loadSavedWorkouts();
   const item = saved.find(s => s.id === id);
   if (!item){ alert("Treino salvo não encontrado."); return; }
+
+  // ✅ restaura o dia do treino salvo
+  setBuilderDia(item.dia ?? null);
 
   const lib = montarBiblioteca();
   const byId = new Map(lib.map(ex => [ex.nome.trim().toLowerCase(), ex]));
@@ -773,38 +828,39 @@ function setChipHome(textoFort = "Escolha um treino") {
 window.mostrarHome = function () {
   document.body.classList.add("mode-home");
   document.body.classList.remove("mode-work","mode-builder");
+  try { pararDescanso(); } catch {}
 
   document.body.classList.add("is-home");
   document.body.classList.remove("is-workarea");
 
-  // ✅ NÃO mata o treino em andamento (pra não “perder” ao clicar em Home)
-  // treinoAtual/treinoDraft continuam vivos, e o botão "Treino" volta pra ele.
+  // Não apaga histórico nem draft salvo, só reseta a tela
+  treinoAtual = null;
+  treinoDraft = null;
 
   el("home").style.display = "block";
   el("workarea").style.display = "none";
 
-  // limpa a área do treino só visualmente (sem apagar o draft salvo)
-  const main = document.getElementById("treino");
-  if (main) main.innerHTML = "";
+  // limpa a área do treino pra não ficar “resto” renderizado
+  el("treino").innerHTML = "";
 
-  // feedback pro usuário (se tiver treino em andamento)
-  const draft = treinoDraft || loadDraft();
-  if (draft && draft.treino && draft.data === hojeISO()){
-    treinoAtual = draft.treino;
-    treinoDraft = draft;
-    const lbl = document.getElementById("treinoSelecionadoLabel");
-    if (lbl) lbl.textContent = `⏳ Treino em andamento: ${friendlyNomeTreino(draft.treino)} — toque em "Treino" para voltar.`;
-    setChipHome("Treino em andamento");
-  } else {
-    setChipHome("Escolha um treino");
-  }
+  el("progressoGeral").style.display = "none";
+  el("acoes").style.display = "none";
+  el("cronometro").style.display = "none";
 
+  setChipHome("Escolha um treino");
   setBottomNavActive("home");
   setFabsVisible({ save:false, top:false });
-  renderMiniChart();
+  // reset seleção da Home
+  treinoSelecionadoHome = null;
+  document.querySelectorAll("#listaTreinos .train").forEach(b=>b.classList.remove("is-selected"));
+  const btn = document.getElementById("btnComecarTreino");
+  if (btn){ btn.classList.add("is-disabled"); btn.textContent = "🚀 Começar treino"; }
+  const lbl = document.getElementById("treinoSelecionadoLabel");
+  if (lbl) lbl.textContent = "Selecione um treino abaixo 👇";
 
-  // também atualiza o descanso se estiver rodando (sem mostrar na Home)
-  updateRestUI();
+  definirFraseMotivacional();
+  renderMiniChart();
+  window.scrollTo({ top: 0, behavior: "smooth" });
 };
 
 function entrarWorkarea(tituloChip) {
@@ -838,21 +894,11 @@ function setFabsVisible({ save=false, top=false } = {}){
 
 // botão “Treino” da barra inferior: volta pro último treino aberto (se existir)
 window.voltarTreinoAtual = function(){
-  // ✅ tenta voltar pro treino em andamento (mesmo se você saiu pra Home)
-  const draft = treinoDraft || loadDraft();
   if (treinoAtual) {
     carregarTreino(treinoAtual);
-    updateRestUI();
-    return;
+  } else {
+    mostrarHome();
   }
-  if (draft && draft.treino && draft.data === hojeISO()){
-    treinoAtual = draft.treino;
-    treinoDraft = draft;
-    carregarTreino(treinoAtual);
-    updateRestUI();
-    return;
-  }
-  mostrarHome();
 };
 
 // mostra/oculta “Topo” ao rolar no mobile
@@ -969,7 +1015,7 @@ function renderTreino(){
         <input type="number" inputmode="decimal" min="0" step="0.5" placeholder="Carga (kg)" value="${s.peso ?? ""}" data-ex="${exIndex}" data-serie="${sIndex}" data-type="peso"/>
         <input type="number" inputmode="numeric" min="0" step="1" placeholder="Reps feitas" value="${s.reps ?? ""}" data-ex="${exIndex}" data-serie="${sIndex}" data-type="reps"/>
         <div class="btns">
-          <button class="rest" type="button" onclick="iniciarDescanso(${descansoSeg})">⏱ ${descansoSeg}s</button>
+          <button class="rest" type="button" onclick="liberarAudioUmaVez(); iniciarDescanso(${descansoSeg})">⏱ ${descansoSeg}s</button>
           <button class="ok" type="button" onclick="toggleOk(${exIndex}, ${sIndex})">${s.ok ? "✅ Feito" : "✅"}</button>
         </div>
         <div class="slabel">${s.ok ? "Concluída" : "Pendente"}</div>
@@ -1094,84 +1140,51 @@ function renderMiniChart(){
   ctx.globalAlpha = 1;
 }
 
-/** Descanso (persistente) ✅ */
-function updateRestUI(){
-  const st = loadRest();
-  const cron = el("cronometro");
-  if (!st || !st.active){
-    // se não tem descanso ativo, só garante que o loop pare
-    if (descansoInterval) { clearInterval(descansoInterval); descansoInterval = null; }
-    return;
-  }
+/** Descanso */
+window.iniciarDescanso = function(seg){
+  el("cronometro").style.display = "block";
+  let restante = Number(seg);
+  const total = restante;
 
-  const total = Number(st.totalSec) || 0;
-  const msLeft = (Number(st.endTs) || 0) - Date.now();
-  const secLeft = Math.max(0, Math.ceil(msLeft / 1000));
+  if (descansoInterval) clearInterval(descansoInterval);
 
-  // ✅ Mostra o cronômetro só quando estiver na tela de treino
-  const workVisivel = el("workarea")?.style.display === "block";
-  if (cron) cron.style.display = workVisivel ? "block" : "none";
+  const tick = () => {
+    el("cronometroTexto").textContent = `⏱️ Descanso: ${restante}s`;
+    const pct = total ? Math.round(((total - restante) / total) * 100) : 0;
+    el("barraProgresso").style.width = `${pct}%`;
 
-  if (workVisivel){
-    el("cronometroTexto").textContent = `⏱️ Descanso: ${secLeft}s`;
-    const pct = total ? Math.round(((total - secLeft) / total) * 100) : 0;
-    el("barraProgresso").style.width = `${Math.max(0, Math.min(100, pct))}%`;
-  }
+    if (restante <= 0) {
+      clearInterval(descansoInterval);
+      descansoInterval = null;
 
-  if (msLeft <= 0){
-    // finaliza uma vez só
-    st.active = false;
-    saveRest(st);
-
-    if (workVisivel){
       el("cronometroTexto").textContent = `✅ Descanso finalizado!`;
       el("barraProgresso").style.width = `100%`;
+
+      // 📳 Vibra (Android). No iPhone pode não vibrar mesmo.
+      try { navigator.vibrate?.(200); } catch {}
+
+      // 🔊 Som (iOS/Android) — precisa do arquivo em assets/audio/beep.wav
+      try {
+        somDescanso.currentTime = 0;
+        somDescanso.play();
+      } catch {}
+
+      return; // para o tick aqui
     }
 
-    // 📳 Vibra (Android). No iPhone pode não vibrar mesmo.
-    try { navigator.vibrate?.([120,60,120]); } catch {}
-
-    // 🔊 Beep sem pausar música
-    playBeepSoft();
-
-    // limpa depois de finalizar (mas deixa a mensagem aparecer)
-    setTimeout(() => { clearRest(); }, 1500);
-
-    if (descansoInterval) { clearInterval(descansoInterval); descansoInterval = null; }
-  }
-}
-function startRestLoop(){
-  if (descansoInterval) clearInterval(descansoInterval);
-  updateRestUI();
-  descansoInterval = setInterval(updateRestUI, 250);
-}
-
-window.iniciarDescanso = function(seg){
-  const total = Math.max(1, Number(seg) || 0);
-  const st = {
-    active: true,
-    totalSec: total,
-    startTs: Date.now(),
-    endTs: Date.now() + total*1000
+    restante -= 1;
   };
-  saveRest(st);
-  startRestLoop();
+
+  tick();
+  descansoInterval = setInterval(tick, 1000);
 };
 
 window.pararDescanso = function(){
   if (descansoInterval) clearInterval(descansoInterval);
   descansoInterval = null;
-  clearRest();
   el("cronometro").style.display = "none";
   el("barraProgresso").style.width = "0%";
 };
-document.addEventListener("visibilitychange", () => {
-  // ao voltar pra tela, atualiza na hora (sem “congelar”)
-  if (!document.hidden) updateRestUI();
-});
-window.addEventListener("focus", () => { updateRestUI(); });
-window.addEventListener("pageshow", () => { updateRestUI(); });
-
 
 /** Salvar e finalizar */
 window.salvarSessao = function(){
@@ -1475,24 +1488,10 @@ window.fecharModalGif = function(){
   const btn = document.getElementById("btnComecarTreino");
   if (btn){ btn.classList.add("is-disabled"); btn.textContent = "🚀 Começar treino"; }
   const lbl = document.getElementById("treinoSelecionadoLabel");
-  // ✅ Se tiver treino salvo hoje, avisa e deixa pronto pra voltar
-  const draft = loadDraft();
-  if (draft && draft.treino && draft.data === hojeISO()){
-    treinoAtual = draft.treino;
-    treinoDraft = draft;
-    if (lbl) lbl.textContent = `⏳ Treino em andamento: ${friendlyNomeTreino(draft.treino)} — toque em "Treino" para voltar.`;
-    setChipHome("Treino em andamento");
-  } else {
-    if (lbl) lbl.textContent = "Selecione um treino abaixo 👇";
-    }
-
-  // ✅ Restaura descanso em andamento (se existir)
-  const rest = loadRest();
-  if (rest && rest.active){
-    startRestLoop();
-  }
+  if (lbl) lbl.textContent = "Selecione um treino abaixo 👇";
   el("home").style.display = "block";
   el("workarea").style.display = "none";
+  setChipHome("Escolha um treino");
   setBottomNavActive("home");
   setFabsVisible({ save:false, top:false });
   renderMiniChart();
