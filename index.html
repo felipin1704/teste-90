@@ -6,7 +6,7 @@
   <title>Ficha de Treino</title>
 
   <!-- ✅ cache-buster: MUDA a cada atualização -->
-  <link rel="stylesheet" href="./style.css?v=20260218-1" />
+  <link rel="stylesheet" href="./style.css?v=20260216-3" />
 </head>
 
 <body class="mode-home">
@@ -67,7 +67,7 @@
           🚀 Começar treino
         </button>
 
-        <button class="hero-btn hero-btn-secondary" id="btnAbrirBiblioteca" type="button" onclick="abrirBiblioteca()">
+        <button class="hero-btn hero-btn-secondary" id="btnAbrirBiblioteca" type="button" onclick="abrirSelecaoDiaBuilder()">
           🧩 Montar treino do dia
         </button>
 
@@ -84,26 +84,28 @@
           <div>
             <h2 class="builder-title">Biblioteca de Exercícios</h2>
             <p class="builder-sub">Busque, filtre e selecione os exercícios do dia.</p>
+
+            <!-- ✅ Dia selecionado (opcional) -->
+            <div id="builderSelectedDay" class="builder-day-label" style="display:none;"></div>
           </div>
           <button class="btn ghost builder-close" type="button" onclick="fecharBiblioteca()">✖ Fechar</button>
         </div>
-        <div class="builder-controls">
-          <input class="builder-search" id="builderSearch" type="text" placeholder="🔎 Buscar exercício (ex: supino, agachamento)"/>
-          <div class="builder-filters" id="builderFilters"></div>
-        </div>
-        <div class="builder-list" id="builderList"></div>
-        <div class="builder-bottom">
-          <div class="builder-count" id="builderCount">0 selecionados</div>
-          <div class="builder-actions">
-            <button class="btn" type="button" onclick="limparBiblioteca()">Limpar</button>
-            <button class="btn success" id="btnComecarMontado" type="button" onclick="comecarTreinoMontado()">🚀 Começar treino</button>
+
+        <!-- ✅ CONTROLES MOVIDOS PARA CIMA (sem precisar rolar tudo) -->
+        <div class="builder-quick">
+          <div class="builder-bottom">
+            <div class="builder-count" id="builderCount">0 selecionados</div>
+            <div class="builder-actions">
+              <button class="btn" type="button" onclick="limparBiblioteca()">Limpar</button>
+              <button class="btn success" id="btnComecarMontado" type="button" onclick="comecarTreinoMontado()">🚀 Começar treino</button>
+            </div>
           </div>
-        </div>
-      
+
           <div class="builder-save">
             <input class="builder-save-input" id="builderWorkoutName" type="text" placeholder="💾 Nome do treino (ex: Pernas A)"/>
             <button class="btn primary" id="btnSalvarTreinoMontado" type="button" onclick="salvarTreinoMontado()">⭐ Salvar treino</button>
           </div>
+
           <div class="builder-saved" id="builderSavedWrap">
             <div class="builder-saved-top">
               <div class="builder-saved-title">Treinos salvos</div>
@@ -111,7 +113,16 @@
             </div>
             <div class="builder-saved-list" id="builderSavedList"></div>
           </div>
+        </div>
 
+        <!-- Busca + filtros -->
+        <div class="builder-controls">
+          <input class="builder-search" id="builderSearch" type="text" placeholder="🔎 Buscar exercício (ex: supino, agachamento)"/>
+          <div class="builder-filters" id="builderFilters"></div>
+        </div>
+
+        <!-- Lista -->
+        <div class="builder-list" id="builderList"></div>
       </section>
 
             <details class="home-details">
@@ -176,8 +187,34 @@
     </button>
   </nav>
 
+
+  <!-- ===== Modal: escolher dia da semana (Montar treino do dia) ===== -->
+  <div class="day-modal" id="dayModal" aria-hidden="true">
+    <div class="day-modal-card">
+      <div class="day-modal-top">
+        <h2 class="day-modal-title">Qual dia você quer montar?</h2>
+        <button class="btn ghost" type="button" onclick="fecharSelecaoDiaBuilder()">✖</button>
+      </div>
+      <p class="day-modal-sub">Escolha o dia e monte o treino. Ao salvar, ele fica vinculado ao dia.</p>
+
+      <div class="day-grid">
+        <button class="day-btn" type="button" onclick="selecionarDiaBuilder('Segunda')">Segunda</button>
+        <button class="day-btn" type="button" onclick="selecionarDiaBuilder('Terça')">Terça</button>
+        <button class="day-btn" type="button" onclick="selecionarDiaBuilder('Quarta')">Quarta</button>
+        <button class="day-btn" type="button" onclick="selecionarDiaBuilder('Quinta')">Quinta</button>
+        <button class="day-btn" type="button" onclick="selecionarDiaBuilder('Sexta')">Sexta</button>
+        <button class="day-btn" type="button" onclick="selecionarDiaBuilder('Sábado')">Sábado</button>
+        <button class="day-btn" type="button" onclick="selecionarDiaBuilder('Domingo')">Domingo</button>
+      </div>
+
+      <div class="day-modal-bottom">
+        <button class="btn" type="button" onclick="selecionarDiaBuilder(null)">Pular (sem dia)</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ✅ cache-buster no script também -->
-  <script defer src="./script.js?v=20260218-1"></script>
+  <script defer src="./script.js?v=20260216-3"></script>
 
   <!-- ❌ IMPORTANTE: por enquanto NÃO registrar service worker (cache atrapalha muito) -->
   <!-- <script>
