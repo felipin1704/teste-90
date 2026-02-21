@@ -1362,13 +1362,36 @@ input:focus{
    - quando há muitos treinos, a caixa sticky ficava maior que a tela
    - agora ela vira "scroll" por dentro e não fica cortada pela bottom-nav
    =========================== */
+
+
+/* ===========================
+   FIX MOBILE: Treinos salvos não "engolem" a tela ✅
+   - Em vez de rolar a caixa inteira (sticky), a lista de treinos salvos vira um scroll interno
+   - Assim você consegue ver a biblioteca inteira no celular
+   =========================== */
 @media (max-width: 720px){
+  /* mantém o bloco de ações visível, mas sem virar um "paredão" */
   body.mode-builder .builder-quick{
-    max-height: calc(100vh - 170px); /* espaço para topbar + margens */
+    position: sticky;
+    top: 10px;
+    z-index: 40;
+    overflow: visible;      /* NÃO trava o scroll da página */
+    max-height: none;
+    padding-bottom: 12px;
+  }
+
+  /* a lista de treinos salvos que ganha scroll interno */
+  body.mode-builder #builderSavedList{
+    max-height: 240px;      /* ajuste fino */
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
-    padding-bottom: calc(14px + env(safe-area-inset-bottom) + 80px); /* evita ficar atrás da bottom-nav */
+    padding-right: 6px;     /* espaço p/ barra de rolagem */
+  }
+
+  /* garante que o fundo da lista não fique "atrás" da bottom-nav */
+  body.mode-builder #builder{
+    padding-bottom: calc(18px + env(safe-area-inset-bottom) + 92px);
   }
 }
 
