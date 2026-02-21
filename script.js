@@ -143,6 +143,14 @@ function formatBR(iso) {
   const [y, m, d] = iso.split("-");
   return `${d}/${m}/${y}`;
 }
+
+function tituloSessao(sessao){
+  const dia = sessao?.dia ?? null;
+  const nome = sessao?.nomeTreino ?? null;
+  if (dia && nome) return `${dia} — ${nome}`;
+  if (nome) return String(nome);
+  return String(sessao?.treino || "Treino");
+}
 function loadHistory() {
   try { return JSON.parse(localStorage.getItem(STORAGE_HISTORY) || "[]"); }
   catch { return []; }
@@ -265,6 +273,7 @@ let builderState = { aberto:false, filtro:"Todos", busca:"", selecionados:{}, or
    =========================== */
 
 let builderDiaSelecionado = null;
+let builderTreinoNomeSelecionado = null; // nome do treino (quando vem de 'Treinos salvos' ou digitado)
 
 function setBuilderDia(dia){
   builderDiaSelecionado = (dia === null || dia === undefined || dia === "") ? null : String(dia);
@@ -279,7 +288,14 @@ function setBuilderDia(dia){
   label.textContent = `📅 Dia selecionado: ${builderDiaSelecionado}`;
 }
 
+function setBuilderNomeTreino(nome){
+  const n = String(nome || "").trim();
+  builderTreinoNomeSelecionado = n ? n : null;
+}
+
 window.abrirSelecaoDiaBuilder = function(){
+  // ao montar um novo treino, limpa o nome selecionado (caso tenha vindo de um treino salvo)
+  setBuilderNomeTreino(null);
   // abre modal de dias antes de abrir a biblioteca
   const modal = document.getElementById("dayModal");
   if (!modal){
@@ -434,6 +450,130 @@ function loadSavedWorkouts(){
 }
 function saveSavedWorkouts(arr){
   try { localStorage.setItem(STORAGE_SAVED_WORKOUTS, JSON.stringify(arr || [])); } catch {}
+
+function idsDoTreinoPadrao(chave){
+  const arr = TREINOS[chave];
+  if (!Array.isArray(arr)) return [];
+  return arr.map(ex => String(ex.nome || "").trim().toLowerCase()).filter(Boolean);
+}
+
+function upsertTreinoSalvo({ nome, dia, ids }){
+  const saved = loadSavedWorkouts();
+  const nomeNorm = String(nome || "").trim();
+  const diaNorm = (dia === null || dia === undefined || dia === "") ? null : String(dia);
+  const idx = saved.findIndex(s => String(s.nome || "").trim().toLowerCase() === nomeNorm.toLowerCase() && (s.dia ?? null) === (diaNorm ?? null));
+
+  const item = {
+    id: (idx >= 0 ? saved[idx].id : uid()),
+    nome: nomeNorm,
+    dia: diaNorm,
+    ids: Array.isArray(ids) ? ids : [],
+    createdAt: Date.now()
+  };
+
+  if (idx >= 0) saved[idx] = item;
+  else saved.unshift(item);
+
+  saveSavedWorkouts(saved);
+  return item;
+}
+
+window.gerarDivisaoAutomatica = function(){
+  const goal = String(document.getElementById("goalSelect")?.value || "hipertrofia");
+  const level = String(document.getElementById("levelSelect")?.value || "intermediario");
+  const focus = String(document.getElementById("focusSelect")?.value || "inferior");
+
+  // planos base (usando apenas os treinos padrão disponíveis)
+  let plano = [];
+
+  if (goal === "forca"){
+    if (level === "iniciante") plano = [
+      { dia:"Segunda", key:"Superior 1" },
+      { dia:"Quarta", key:"Inferior 1" },
+      { dia:"Sexta", key:"Superior 2" },
+    ];
+    else if (level === "avancado") plano = [
+      { dia:"Segunda", key:"Superior 1" },
+      { dia:"Terça", key:"Inferior 1" },
+      { dia:"Quinta", key:"Superior 2" },
+      { dia:"Sábado", key:"Inferior 2" },
+    ];
+    else plano = [
+      { dia:"Segunda", key:"Superior 1" },
+      { dia:"Terça", key:"Inferior 1" },
+      { dia:"Quinta", key:"Superior 2" },
+      { dia:"Sexta", key:"Inferior 2" },
+    ];
+  } else if (goal === "emagrecimento"){
+    if (level === "iniciante") plano = [
+      { dia:"Segunda", key:"Superior 1" },
+      { dia:"Quarta", key:"Inferior 1" },
+      { dia:"Sexta", key:"Superior 2" },
+    ];
+    else if (level === "avancado") plano = [
+      { dia:"Segunda", key:"Superior 1" },
+      { dia:"Terça", key:"Inferior 1" },
+      { dia:"Quinta", key:"Superior 2" },
+      { dia:"Sábado", key:"Inferior 2" },
+      { dia:"Domingo", key:"Superior 1" },
+    ];
+    else plano = [
+      { dia:"Segunda", key:"Superior 1" },
+      { dia:"Terça", key:"Inferior 1" },
+      { dia:"Quinta", key:"Superior 2" },
+      { dia:"Sábado", key:"Inferior 2" },
+    ];
+  } else {
+    // hipertrofia (padrão)
+    if (level === "iniciante") plano = [
+      { dia:"Segunda", key:"Superior 1" },
+      { dia:"Quarta", key:"Inferior 1" },
+      { dia:"Sexta", key:"Superior 2" },
+    ];
+    else if (level === "avancado") plano = [
+      { dia:"Segunda", key:"Superior 1" },
+      { dia:"Terça", key:"Inferior 1" },
+      { dia:"Quarta", key:"Superior 2" },
+      { dia:"Quinta", key:"Inferior 2" },
+      { dia:"Sábado", key:"Superior 1" },
+    ];
+    else plano = [
+      { dia:"Segunda", key:"Superior 1" },
+      { dia:"Terça", key:"Inferior 1" },
+      { dia:"Quinta", key:"Superior 2" },
+      { dia:"Sábado", key:"Inferior 2" },
+    ];
+  }
+
+  // Ajuste simples por foco (se a pessoa escolheu Superior/Inferior)
+  if (focus === "superior"){
+    // troca um inferior por superior (se existir)
+    const idxInf = plano.findIndex(p => p.key.startsWith("Inferior"));
+    if (idxInf >= 0) plano[idxInf] = { ...plano[idxInf], key: "Superior 2" };
+  }
+  if (focus === "inferior"){
+    const idxSup = plano.findIndex(p => p.key.startsWith("Superior"));
+    if (idxSup >= 0) plano[idxSup] = { ...plano[idxSup], key: "Inferior 2" };
+  }
+
+  let criados = 0;
+  plano.forEach(p => {
+    const ids = idsDoTreinoPadrao(p.key);
+    if (!ids.length) return;
+    const nome = friendlyNomeTreino(p.key);
+    upsertTreinoSalvo({ nome, dia: p.dia, ids });
+    criados++;
+  });
+
+  // abre a lista de treinos salvos para a pessoa ver na hora
+  try {
+    window.abrirTreinosSalvos();
+  } catch {}
+
+  alert(`✨ Divisão automática criada! (${criados} treinos)
+
+Dica: abra "⭐ Treino salvo" e toque em "Carregar" ou "Começar".`);
+};
 }
 function uid(){
   return Math.random().toString(16).slice(2) + Date.now().toString(16);
@@ -659,11 +799,20 @@ window.comecarTreinoMontado = function(){
     return;
   }
 
-  treinoAtual = builderDiaSelecionado ? `Treino do dia (${builderDiaSelecionado})` : "Treino do dia";
+  const dia = builderDiaSelecionado ?? null;
+const nomeDigitado = String(document.getElementById("builderWorkoutName")?.value || "").trim();
+const nomeBase = (builderTreinoNomeSelecionado || nomeDigitado) ? (builderTreinoNomeSelecionado || nomeDigitado) : null;
+
+// Nome que aparece no treino/histórico
+treinoAtual = nomeBase
+  ? (dia ? `${dia} — ${nomeBase}` : `${nomeBase}`)
+  : (dia ? `Treino do dia (${dia})` : "Treino do dia");
   entrarWorkarea(treinoAtual);
 
   treinoDraft = {
     data: hojeISO(),
+    dia: dia,
+    nomeTreino: nomeBase,
     treino: treinoAtual,
     exercicios: selecionados.map(ex => ({
       nome: ex.nome,
@@ -702,6 +851,8 @@ window.salvarTreinoMontado = function(){
   }
 
   const dia = builderDiaSelecionado; // ✅ vincula ao dia (pode ser null)
+  // mantém o nome selecionado para quando clicar em "Começar treino"
+  setBuilderNomeTreino(nome);
   const saved = loadSavedWorkouts();
 
   // ✅ se já existe com mesmo nome + mesmo dia, substitui
@@ -772,8 +923,9 @@ function carregarTreinoSalvo(id, iniciar){
   const item = saved.find(s => s.id === id);
   if (!item){ alert("Treino salvo não encontrado."); return; }
 
-  // ✅ restaura o dia do treino salvo
+  // ✅ restaura o dia e o NOME do treino salvo
   setBuilderDia(item.dia ?? null);
+  setBuilderNomeTreino(item.nome ?? null);
 
   const lib = montarBiblioteca();
   const byId = new Map(lib.map(ex => [ex.nome.trim().toLowerCase(), ex]));
@@ -1256,6 +1408,8 @@ function montarSessaoParaHistorico(draft){
 
   return {
     data: draft.data,
+    dia: draft.dia ?? null,
+    nomeTreino: draft.nomeTreino ?? null,
     treino: draft.treino,
     volumeTotal: Math.round(volumeTotal),
     exercicios
@@ -1300,7 +1454,7 @@ window.verHistorico = function(){
     box.className = "hist-item";
     box.innerHTML = `
       <div class="hist-top">
-        <div><b>${sessao.treino}</b> • ${formatBR(sessao.data)}</div>
+        <div><b>${tituloSessao(sessao)}</b> • ${formatBR(sessao.data)}</div>
         <div>🔥 Volume total: <b>${sessao.volumeTotal} kg</b></div>
       </div>
       <div class="hist-ex"></div>
