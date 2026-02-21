@@ -264,6 +264,34 @@ function el(id){ return document.getElementById(id); }
 
 let treinoSelecionadoHome = null; // seleção na tela inicial
 
+function atualizarBotaoComecarHome(){
+  const btn = document.getElementById("btnComecarTreino");
+  if (!btn) return;
+
+  // Se a pessoa selecionou um treino da lista (cards), prioriza isso
+  if (treinoSelecionadoHome){
+    btn.classList.remove("is-disabled");
+    btn.textContent = `🚀 Começar: ${treinoSelecionadoHome}`;
+    return;
+  }
+
+  // Caso contrário, o botão inicia o "Treino do dia" pelos selects
+  const goal  = document.getElementById("goalSelect")?.value;
+  const level = document.getElementById("levelSelect")?.value;
+  const focus = document.getElementById("focusSelect")?.value;
+
+  const pronto = !!goal && !!level && !!focus;
+
+  if (pronto){
+    btn.classList.remove("is-disabled");
+    btn.textContent = "🚀 Começar treino";
+  } else {
+    btn.classList.add("is-disabled");
+    btn.textContent = "🚀 Começar treino";
+  }
+}
+
+
 let builderState = { aberto:false, filtro:"Todos", busca:"", selecionados:{}, ordem:[] };
 
 /* ===========================
@@ -294,6 +322,19 @@ window.addEventListener("DOMContentLoaded", () => {
     sexSel.addEventListener("change", aplicarPreferenciaSexoNoTipo);
   }
 });
+
+
+// ✅ Home: ativa/desativa o botão "Começar treino" de acordo com os selects
+window.addEventListener("DOMContentLoaded", () => {
+  ["goalSelect","levelSelect","focusSelect"].forEach(id => {
+    const elSel = document.getElementById(id);
+    if (elSel) elSel.addEventListener("change", () => {
+      if (!treinoSelecionadoHome) atualizarBotaoComecarHome();
+    });
+  });
+  atualizarBotaoComecarHome();
+});
+
 
 let builderTreinoNomeSelecionado = null; // nome do treino (quando vem de 'Treinos salvos' ou digitado)
 
@@ -1077,7 +1118,8 @@ window.mostrarHome = function () {
   treinoSelecionadoHome = null;
   document.querySelectorAll("#listaTreinos .train").forEach(b=>b.classList.remove("is-selected"));
   const btn = document.getElementById("btnComecarTreino");
-  if (btn){ btn.classList.add("is-disabled"); btn.textContent = "🚀 Começar treino"; }
+  if (btn){ btn.textContent = "🚀 Começar treino"; }
+  atualizarBotaoComecarHome();
   const lbl = document.getElementById("treinoSelecionadoLabel");
   if (lbl) lbl.textContent = "Selecione um treino abaixo 👇";
 
@@ -1711,7 +1753,8 @@ window.fecharModalGif = function(){
   // Home hero: começa sem seleção
   treinoSelecionadoHome = null;
   const btn = document.getElementById("btnComecarTreino");
-  if (btn){ btn.classList.add("is-disabled"); btn.textContent = "🚀 Começar treino"; }
+  if (btn){ btn.textContent = "🚀 Começar treino"; }
+  atualizarBotaoComecarHome();
   const lbl = document.getElementById("treinoSelecionadoLabel");
   if (lbl) lbl.textContent = "Selecione um treino abaixo 👇";
   el("home").style.display = "block";
