@@ -273,6 +273,28 @@ let builderState = { aberto:false, filtro:"Todos", busca:"", selecionados:{}, or
    =========================== */
 
 let builderDiaSelecionado = null;
+// ===========================
+// SEXO (Divisão automática) ✅
+// - Homem tende a priorizar Superior
+// - Mulher tende a priorizar Inferior
+// ===========================
+function aplicarPreferenciaSexoNoTipo(){
+  const sexSel = document.getElementById("sexSelect");
+  const focusSel = document.getElementById("focusSelect");
+  if (!sexSel || !focusSel) return;
+  // ajusta o "Tipo" para combinar com o sexo (usuário ainda pode trocar depois)
+  if (sexSel.value === "mulher") focusSel.value = "inferior";
+  else focusSel.value = "superior";
+}
+window.addEventListener("DOMContentLoaded", () => {
+  const sexSel = document.getElementById("sexSelect");
+  if (sexSel){
+    // aplica no primeiro load (deixa masculino já priorizando superior)
+    aplicarPreferenciaSexoNoTipo();
+    sexSel.addEventListener("change", aplicarPreferenciaSexoNoTipo);
+  }
+});
+
 let builderTreinoNomeSelecionado = null; // nome do treino (quando vem de 'Treinos salvos' ou digitado)
 
 function setBuilderDia(dia){
@@ -480,9 +502,10 @@ function upsertTreinoSalvo({ nome, dia, ids }){
 }
 
 window.gerarDivisaoAutomatica = function(){
-  const goal = String(document.getElementById("goalSelect")?.value || "hipertrofia");
+  const goal  = String(document.getElementById("goalSelect")?.value  || "hipertrofia");
   const level = String(document.getElementById("levelSelect")?.value || "intermediario");
   const focus = String(document.getElementById("focusSelect")?.value || "inferior");
+  const sex   = String(document.getElementById("sexSelect")?.value   || "homem"); // ✅ novo
 
   // planos base (usando apenas os treinos padrão disponíveis)
   let plano = [];
@@ -491,70 +514,118 @@ window.gerarDivisaoAutomatica = function(){
     if (level === "iniciante") plano = [
       { dia:"Segunda", key:"Superior 1" },
       { dia:"Quarta", key:"Inferior 1" },
-      { dia:"Sexta", key:"Superior 2" },
+      { dia:"Sexta",  key:"Superior 2" },
     ];
     else if (level === "avancado") plano = [
       { dia:"Segunda", key:"Superior 1" },
-      { dia:"Terça", key:"Inferior 1" },
-      { dia:"Quinta", key:"Superior 2" },
-      { dia:"Sábado", key:"Inferior 2" },
+      { dia:"Terça",   key:"Inferior 1" },
+      { dia:"Quinta",  key:"Superior 2" },
+      { dia:"Sábado",  key:"Inferior 2" },
     ];
     else plano = [
       { dia:"Segunda", key:"Superior 1" },
-      { dia:"Terça", key:"Inferior 1" },
-      { dia:"Quinta", key:"Superior 2" },
-      { dia:"Sexta", key:"Inferior 2" },
+      { dia:"Terça",   key:"Inferior 1" },
+      { dia:"Quinta",  key:"Superior 2" },
+      { dia:"Sexta",   key:"Inferior 2" },
     ];
   } else if (goal === "emagrecimento"){
     if (level === "iniciante") plano = [
       { dia:"Segunda", key:"Superior 1" },
-      { dia:"Quarta", key:"Inferior 1" },
-      { dia:"Sexta", key:"Superior 2" },
+      { dia:"Quarta",  key:"Inferior 1" },
+      { dia:"Sexta",   key:"Superior 2" },
     ];
     else if (level === "avancado") plano = [
       { dia:"Segunda", key:"Superior 1" },
-      { dia:"Terça", key:"Inferior 1" },
-      { dia:"Quinta", key:"Superior 2" },
-      { dia:"Sábado", key:"Inferior 2" },
+      { dia:"Terça",   key:"Inferior 1" },
+      { dia:"Quinta",  key:"Superior 2" },
+      { dia:"Sábado",  key:"Inferior 2" },
       { dia:"Domingo", key:"Superior 1" },
     ];
     else plano = [
       { dia:"Segunda", key:"Superior 1" },
-      { dia:"Terça", key:"Inferior 1" },
-      { dia:"Quinta", key:"Superior 2" },
-      { dia:"Sábado", key:"Inferior 2" },
+      { dia:"Terça",   key:"Inferior 1" },
+      { dia:"Quinta",  key:"Superior 2" },
+      { dia:"Sábado",  key:"Inferior 2" },
     ];
   } else {
     // hipertrofia (padrão)
     if (level === "iniciante") plano = [
       { dia:"Segunda", key:"Superior 1" },
-      { dia:"Quarta", key:"Inferior 1" },
-      { dia:"Sexta", key:"Superior 2" },
+      { dia:"Quarta",  key:"Inferior 1" },
+      { dia:"Sexta",   key:"Superior 2" },
     ];
     else if (level === "avancado") plano = [
       { dia:"Segunda", key:"Superior 1" },
-      { dia:"Terça", key:"Inferior 1" },
-      { dia:"Quarta", key:"Superior 2" },
-      { dia:"Quinta", key:"Inferior 2" },
-      { dia:"Sábado", key:"Superior 1" },
+      { dia:"Terça",   key:"Inferior 1" },
+      { dia:"Quarta",  key:"Superior 2" },
+      { dia:"Quinta",  key:"Inferior 2" },
+      { dia:"Sábado",  key:"Superior 1" },
     ];
     else plano = [
       { dia:"Segunda", key:"Superior 1" },
-      { dia:"Terça", key:"Inferior 1" },
-      { dia:"Quinta", key:"Superior 2" },
-      { dia:"Sábado", key:"Inferior 2" },
+      { dia:"Terça",   key:"Inferior 1" },
+      { dia:"Quinta",  key:"Superior 2" },
+      { dia:"Sábado",  key:"Inferior 2" },
     ];
   }
 
-  // Ajuste simples por foco (se a pessoa escolheu Superior/Inferior)
-  if (focus === "superior"){
-    // troca um inferior por superior (se existir)
-    const idxInf = plano.findIndex(p => p.key.startsWith("Inferior"));
-    if (idxInf >= 0) plano[idxInf] = { ...plano[idxInf], key: "Superior 2" };
+  // ✅ Preferência por sexo (somente para equilibrar a divisão)
+  // Homem: puxa um pouco mais para Superior
+  // Mulher: puxa um pouco mais para Inferior
+  const prefer = (sex === "mulher") ? "inferior" : "superior";
+
+  const n = plano.length;
+
+  function countPrefix(prefix){
+    return plano.filter(p => String(p.key||"").startsWith(prefix)).length;
   }
-  if (focus === "inferior"){
-    const idxSup = plano.findIndex(p => p.key.startsWith("Superior"));
-    if (idxSup >= 0) plano[idxSup] = { ...plano[idxSup], key: "Inferior 2" };
+  function pickKey(prefix){
+    const a = prefix === "Superior" ? "Superior 1" : "Inferior 1";
+    const b = prefix === "Superior" ? "Superior 2" : "Inferior 2";
+    const ca = plano.filter(p => p.key === a).length;
+    const cb = plano.filter(p => p.key === b).length;
+    return ca <= cb ? a : b;
+  }
+  function replaceOne(findPrefix, toPrefix){
+    const idx = plano.findIndex(p => String(p.key||"").startsWith(findPrefix));
+    if (idx < 0) return false;
+    plano[idx] = { ...plano[idx], key: pickKey(toPrefix) };
+    return true;
+  }
+
+  // targets: 3x2 no máximo (n>=5), 3x1 (n=4), 2x1 (n=3)
+  const targetPrefer =
+    n >= 5 ? 3 :
+    n === 4 ? 3 :
+    n === 3 ? 2 : 1;
+
+  const preferPrefix = prefer === "superior" ? "Superior" : "Inferior";
+  const otherPrefix  = prefer === "superior" ? "Inferior" : "Superior";
+
+  // garante pelo menos 1 do outro lado (quando possível)
+  const minOther = n >= 2 ? 1 : 0;
+
+  // aplica equilíbrio por sexo
+  while (countPrefix(preferPrefix) < targetPrefer && countPrefix(otherPrefix) > minOther){
+    if (!replaceOne(otherPrefix, preferPrefix)) break;
+  }
+
+  // ✅ Ajuste final por "Tipo" (focus) sem exagerar
+  // - se escolher Superior: garante Superior >= Inferior + 1 (quando n>=4)
+  // - se escolher Inferior: garante Inferior >= Superior + 1 (quando n>=4)
+  const sCount = () => countPrefix("Superior");
+  const iCount = () => countPrefix("Inferior");
+
+  if (n >= 4){
+    if (focus === "superior"){
+      while (sCount() < iCount() + 1 && iCount() > 1){
+        if (!replaceOne("Inferior", "Superior")) break;
+      }
+    } else if (focus === "inferior"){
+      while (iCount() < sCount() + 1 && sCount() > 1){
+        if (!replaceOne("Superior", "Inferior")) break;
+      }
+    }
   }
 
   let criados = 0;
@@ -567,9 +638,7 @@ window.gerarDivisaoAutomatica = function(){
   });
 
   // abre a lista de treinos salvos para a pessoa ver na hora
-  try {
-    window.abrirTreinosSalvos();
-  } catch {}
+  try { window.abrirTreinosSalvos(); } catch {}
 
   alert(`✨ Divisão automática criada! (${criados} treinos)
 
@@ -982,6 +1051,7 @@ window.mostrarHome = function () {
   document.body.classList.add("mode-home");
   document.body.classList.remove("mode-work","mode-builder");
   try { pararDescanso(); } catch {}
+  try { aplicarPreferenciaSexoNoTipo(); } catch {}
 
   document.body.classList.add("is-home");
   document.body.classList.remove("is-workarea");
