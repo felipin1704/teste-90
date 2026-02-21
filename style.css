@@ -1354,3 +1354,24 @@ input:focus{
 }
 
 .saved-day{ display:inline-flex; gap:6px; align-items:center; padding:2px 8px; border-radius:999px; border:1px solid rgba(59,130,246,.28); background: rgba(59,130,246,.10); }
+
+
+
+/* ===========================
+   FIX MOBILE: muitos treinos salvos ✅
+   - mantém a estrutura
+   - evita a caixa "sticky" ficar gigante e esconder a biblioteca
+   =========================== */
+@media (max-width: 720px){
+  /* o problema é a lista crescer demais dentro do sticky */
+  .builder-saved-list{
+    max-height: 42vh;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding-right: 6px;
+  }
+}
+@media (max-width: 420px){
+  .builder-saved-list{ max-height: 36vh; }
+}
