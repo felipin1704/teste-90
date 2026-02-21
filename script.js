@@ -450,6 +450,7 @@ function loadSavedWorkouts(){
 }
 function saveSavedWorkouts(arr){
   try { localStorage.setItem(STORAGE_SAVED_WORKOUTS, JSON.stringify(arr || [])); } catch {}
+}
 
 function idsDoTreinoPadrao(chave){
   const arr = TREINOS[chave];
@@ -574,7 +575,7 @@ window.gerarDivisaoAutomatica = function(){
 
 Dica: abra "⭐ Treino salvo" e toque em "Carregar" ou "Começar".`);
 };
-}
+
 function uid(){
   return Math.random().toString(16).slice(2) + Date.now().toString(16);
 }
