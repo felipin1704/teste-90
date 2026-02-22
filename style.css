@@ -1343,6 +1343,30 @@ input:focus{
 }
 .day-btn:active{ transform: translateY(1px); }
 
+/* ===== Modal (Divisão automática): estados e variações ===== */
+.day-grid-compact{
+  grid-template-columns: repeat(2, minmax(0,1fr));
+}
+
+.day-btn.is-selected{
+  border-color: rgba(59,130,246,.55);
+  background: rgba(59,130,246,.18);
+}
+
+.day-btn.is-disabled{
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.day-modal-bottom-split{
+  justify-content: space-between;
+  gap: 10px;
+}
+.day-modal-bottom-split .btn{
+  flex: 1;
+}
+
+
 .day-modal-bottom{
   margin-top: 12px;
   display:flex;
@@ -1375,3 +1399,4 @@ input:focus{
 @media (max-width: 420px){
   .builder-saved-list{ max-height: 36vh; }
 }
+
