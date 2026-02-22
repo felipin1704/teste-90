@@ -542,132 +542,227 @@ function upsertTreinoSalvo({ nome, dia, ids }){
   return item;
 }
 
-window.gerarDivisaoAutomatica = function(){
+// ===========================
+// DIVISÃO AUTOMÁTICA (Wizard em 3 passos) ✅
+// 1) Frequência (dias/semana)
+// 2) Dias da semana (multi-seleção)
+// 3) Sexo (equilíbrio superior/inferior)
+// ===========================
+let divisaoWizard = { freq: null, dias: [], sex: null };
+
+const ORDEM_DIAS = ["Segunda","Terça","Quarta","Quinta","Sexta","Sábado","Domingo"];
+
+function abrirModal(id){
+  const modal = document.getElementById(id);
+  if (!modal) return;
+  modal.classList.add("is-open");
+  modal.setAttribute("aria-hidden","false");
+}
+function fecharModal(id){
+  const modal = document.getElementById(id);
+  if (!modal) return;
+  modal.classList.remove("is-open");
+  modal.setAttribute("aria-hidden","true");
+}
+
+function atualizarUISelecaoDiasDivisao(){
+  const sub = document.getElementById("splitDaysSub");
+  const btnCont = document.getElementById("btnContinuarDivisaoDias");
+  const alvo = Number(divisaoWizard.freq || 0);
+  const qtd = divisaoWizard.dias.length;
+
+  if (sub){
+    sub.innerHTML = `Selecione exatamente <b>${alvo}</b> dia(s). (${qtd}/${alvo})`;
+  }
+
+  // pinta botões
+  const modal = document.getElementById("splitDaysModal");
+  if (modal){
+    modal.querySelectorAll(".day-btn[data-day]").forEach(b => {
+      const day = b.getAttribute("data-day");
+      const selected = divisaoWizard.dias.includes(day);
+      b.classList.toggle("is-selected", selected);
+
+      // se já atingiu o limite e esse dia não está selecionado, desabilita
+      const shouldDisable = (qtd >= alvo) && !selected;
+      b.classList.toggle("is-disabled", shouldDisable);
+      b.disabled = shouldDisable;
+    });
+  }
+
+  if (btnCont){
+    const ok = alvo > 0 && qtd === alvo;
+    btnCont.disabled = !ok;
+    btnCont.classList.toggle("is-disabled", !ok);
+  }
+}
+
+window.fecharDivisaoFreq = function(){ fecharModal("splitFreqModal"); };
+window.fecharDivisaoDias = function(){ fecharModal("splitDaysModal"); };
+window.fecharDivisaoSexo = function(){ fecharModal("splitSexModal"); };
+
+window.selecionarDivisaoFreq = function(n){
+  const freq = Number(n);
+  if (![3,4,5,6].includes(freq)) return;
+
+  divisaoWizard.freq = freq;
+  divisaoWizard.dias = [];
+  divisaoWizard.sex  = null;
+
+  fecharModal("splitFreqModal");
+  abrirModal("splitDaysModal");
+  atualizarUISelecaoDiasDivisao();
+};
+
+window.toggleDivisaoDia = function(dia){
+  const d = String(dia || "");
+  if (!ORDEM_DIAS.includes(d)) return;
+
+  const alvo = Number(divisaoWizard.freq || 0);
+  if (!alvo) return;
+
+  const idx = divisaoWizard.dias.indexOf(d);
+  if (idx >= 0){
+    divisaoWizard.dias.splice(idx, 1);
+  } else {
+    if (divisaoWizard.dias.length >= alvo) return; // limite
+    divisaoWizard.dias.push(d);
+  }
+
+  // mantém ordenado (fica bonito e previsível)
+  divisaoWizard.dias.sort((a,b)=>ORDEM_DIAS.indexOf(a)-ORDEM_DIAS.indexOf(b));
+  atualizarUISelecaoDiasDivisao();
+  try { navigator.vibrate?.(10); } catch {}
+};
+
+window.selecionarDiasPadraoDivisao = function(){
+  const alvo = Number(divisaoWizard.freq || 0);
+  if (!alvo) return;
+  divisaoWizard.dias = ORDEM_DIAS.slice(0, alvo);
+  atualizarUISelecaoDiasDivisao();
+};
+
+window.confirmarDivisaoDias = function(){
+  const alvo = Number(divisaoWizard.freq || 0);
+  if (!alvo) return;
+  if (divisaoWizard.dias.length !== alvo){
+    alert(`Selecione exatamente ${alvo} dia(s).`);
+    return;
+  }
+  fecharModal("splitDaysModal");
+  abrirModal("splitSexModal");
+};
+
+window.selecionarDivisaoSexo = function(sex){
+  const s = String(sex || "");
+  if (s !== "homem" && s !== "mulher") return;
+
+  divisaoWizard.sex = s;
+
+  // opcional: sincroniza com o select da Home (mantém coerência)
+  const sexSel = document.getElementById("sexSelect");
+  if (sexSel) sexSel.value = s;
+
+  fecharModal("splitSexModal");
+
+  // dispara geração final
   const goal  = String(document.getElementById("goalSelect")?.value  || "hipertrofia");
   const level = String(document.getElementById("levelSelect")?.value || "intermediario");
   const focus = String(document.getElementById("focusSelect")?.value || "inferior");
-  const sex   = String(document.getElementById("sexSelect")?.value   || "homem"); // ✅ novo
+  gerarDivisaoAutomaticaFinal({ goal, level, focus, sex: s, dias: divisaoWizard.dias.slice() });
+};
 
-  // planos base (usando apenas os treinos padrão disponíveis)
-  let plano = [];
+// Botão da Home continua chamando o mesmo nome ✅
+window.gerarDivisaoAutomatica = function(){
+  // reset e abre o passo 1
+  divisaoWizard = { freq: null, dias: [], sex: null };
+  abrirModal("splitFreqModal");
+};
 
-  if (goal === "forca"){
-    if (level === "iniciante") plano = [
-      { dia:"Segunda", key:"Superior 1" },
-      { dia:"Quarta", key:"Inferior 1" },
-      { dia:"Sexta",  key:"Superior 2" },
-    ];
-    else if (level === "avancado") plano = [
-      { dia:"Segunda", key:"Superior 1" },
-      { dia:"Terça",   key:"Inferior 1" },
-      { dia:"Quinta",  key:"Superior 2" },
-      { dia:"Sábado",  key:"Inferior 2" },
-    ];
-    else plano = [
-      { dia:"Segunda", key:"Superior 1" },
-      { dia:"Terça",   key:"Inferior 1" },
-      { dia:"Quinta",  key:"Superior 2" },
-      { dia:"Sexta",   key:"Inferior 2" },
-    ];
-  } else if (goal === "emagrecimento"){
-    if (level === "iniciante") plano = [
-      { dia:"Segunda", key:"Superior 1" },
-      { dia:"Quarta",  key:"Inferior 1" },
-      { dia:"Sexta",   key:"Superior 2" },
-    ];
-    else if (level === "avancado") plano = [
-      { dia:"Segunda", key:"Superior 1" },
-      { dia:"Terça",   key:"Inferior 1" },
-      { dia:"Quinta",  key:"Superior 2" },
-      { dia:"Sábado",  key:"Inferior 2" },
-      { dia:"Domingo", key:"Superior 1" },
-    ];
-    else plano = [
-      { dia:"Segunda", key:"Superior 1" },
-      { dia:"Terça",   key:"Inferior 1" },
-      { dia:"Quinta",  key:"Superior 2" },
-      { dia:"Sábado",  key:"Inferior 2" },
-    ];
+// Fecha modais clicando fora do card (todos)
+window.addEventListener("click", (e) => {
+  const ids = ["splitFreqModal","splitDaysModal","splitSexModal"];
+  ids.forEach(id => {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+    if (!modal.classList.contains("is-open")) return;
+    if (e.target === modal) fecharModal(id);
+  });
+});
+
+function construirChavesDivisao({ n, sex, focus }){
+  const s = (sex === "mulher") ? "mulher" : "homem";
+  const f = (focus === "superior" || focus === "inferior") ? focus : null;
+
+  let keys = [];
+
+  if (n === 3){
+    keys = (s === "mulher")
+      ? ["Inferior 1","Superior 1","Inferior 2"]
+      : ["Superior 1","Inferior 1","Superior 2"];
+  } else if (n === 4){
+    keys = (s === "mulher")
+      ? ["Inferior 1","Superior 1","Inferior 2","Superior 2"]
+      : ["Superior 1","Inferior 1","Superior 2","Inferior 2"];
+  } else if (n === 5){
+    keys = (s === "mulher")
+      ? ["Inferior 1","Superior 1","Inferior 2","Superior 2","Inferior 1"]
+      : ["Superior 1","Inferior 1","Superior 2","Inferior 2","Superior 1"];
   } else {
-    // hipertrofia (padrão)
-    if (level === "iniciante") plano = [
-      { dia:"Segunda", key:"Superior 1" },
-      { dia:"Quarta",  key:"Inferior 1" },
-      { dia:"Sexta",   key:"Superior 2" },
-    ];
-    else if (level === "avancado") plano = [
-      { dia:"Segunda", key:"Superior 1" },
-      { dia:"Terça",   key:"Inferior 1" },
-      { dia:"Quarta",  key:"Superior 2" },
-      { dia:"Quinta",  key:"Inferior 2" },
-      { dia:"Sábado",  key:"Superior 1" },
-    ];
-    else plano = [
-      { dia:"Segunda", key:"Superior 1" },
-      { dia:"Terça",   key:"Inferior 1" },
-      { dia:"Quinta",  key:"Superior 2" },
-      { dia:"Sábado",  key:"Inferior 2" },
-    ];
+    // 6+
+    keys = (s === "mulher")
+      ? ["Inferior 1","Superior 1","Inferior 2","Superior 2","Inferior 1","Superior 1"]
+      : ["Superior 1","Inferior 1","Superior 2","Inferior 2","Superior 1","Inferior 1"];
   }
 
-  // ✅ Preferência por sexo (somente para equilibrar a divisão)
-  // Homem: puxa um pouco mais para Superior
-  // Mulher: puxa um pouco mais para Inferior
-  const prefer = (sex === "mulher") ? "inferior" : "superior";
-
-  const n = plano.length;
-
-  function countPrefix(prefix){
-    return plano.filter(p => String(p.key||"").startsWith(prefix)).length;
-  }
-  function pickKey(prefix){
+  // Ajuste final pelo "Tipo" escolhido na Home (sem exagerar)
+  const countPrefix = (prefix) => keys.filter(k => String(k).startsWith(prefix)).length;
+  const pickKey = (prefix) => {
     const a = prefix === "Superior" ? "Superior 1" : "Inferior 1";
     const b = prefix === "Superior" ? "Superior 2" : "Inferior 2";
-    const ca = plano.filter(p => p.key === a).length;
-    const cb = plano.filter(p => p.key === b).length;
+    const ca = keys.filter(k => k === a).length;
+    const cb = keys.filter(k => k === b).length;
     return ca <= cb ? a : b;
-  }
-  function replaceOne(findPrefix, toPrefix){
-    const idx = plano.findIndex(p => String(p.key||"").startsWith(findPrefix));
+  };
+
+  const replaceOne = (findPrefix, toPrefix) => {
+    const idx = keys.findIndex(k => String(k).startsWith(findPrefix));
     if (idx < 0) return false;
-    plano[idx] = { ...plano[idx], key: pickKey(toPrefix) };
+    keys[idx] = pickKey(toPrefix);
     return true;
-  }
+  };
 
-  // targets: 3x2 no máximo (n>=5), 3x1 (n=4), 2x1 (n=3)
-  const targetPrefer =
-    n >= 5 ? 3 :
-    n === 4 ? 3 :
-    n === 3 ? 2 : 1;
+  if (n >= 4 && f){
+    const sCount = () => countPrefix("Superior");
+    const iCount = () => countPrefix("Inferior");
 
-  const preferPrefix = prefer === "superior" ? "Superior" : "Inferior";
-  const otherPrefix  = prefer === "superior" ? "Inferior" : "Superior";
-
-  // garante pelo menos 1 do outro lado (quando possível)
-  const minOther = n >= 2 ? 1 : 0;
-
-  // aplica equilíbrio por sexo
-  while (countPrefix(preferPrefix) < targetPrefer && countPrefix(otherPrefix) > minOther){
-    if (!replaceOne(otherPrefix, preferPrefix)) break;
-  }
-
-  // ✅ Ajuste final por "Tipo" (focus) sem exagerar
-  // - se escolher Superior: garante Superior >= Inferior + 1 (quando n>=4)
-  // - se escolher Inferior: garante Inferior >= Superior + 1 (quando n>=4)
-  const sCount = () => countPrefix("Superior");
-  const iCount = () => countPrefix("Inferior");
-
-  if (n >= 4){
-    if (focus === "superior"){
+    if (f === "superior"){
       while (sCount() < iCount() + 1 && iCount() > 1){
         if (!replaceOne("Inferior", "Superior")) break;
       }
-    } else if (focus === "inferior"){
+    } else {
       while (iCount() < sCount() + 1 && sCount() > 1){
         if (!replaceOne("Superior", "Inferior")) break;
       }
     }
   }
+
+  // garante tamanho n
+  return keys.slice(0, n);
+}
+
+function gerarDivisaoAutomaticaFinal({ goal, level, focus, sex, dias }){
+  // goal e level ficam guardados para futuras evoluções (no momento o plano-base usa apenas os treinos padrão disponíveis)
+  const n = Array.isArray(dias) ? dias.length : 0;
+  if (!n){
+    alert("Escolha os dias da semana para gerar a divisão.");
+    return;
+  }
+
+  const diasOrdenados = dias.slice().sort((a,b)=>ORDEM_DIAS.indexOf(a)-ORDEM_DIAS.indexOf(b));
+  const keys = construirChavesDivisao({ n, sex, focus });
+
+  const plano = diasOrdenados.map((dia, i) => ({ dia, key: keys[i] }));
 
   let criados = 0;
   plano.forEach(p => {
@@ -684,7 +779,8 @@ window.gerarDivisaoAutomatica = function(){
   alert(`✨ Divisão automática criada! (${criados} treinos)
 
 Dica: abra "⭐ Treino salvo" e toque em "Carregar" ou "Começar".`);
-};
+}
+
 
 function uid(){
   return Math.random().toString(16).slice(2) + Date.now().toString(16);
@@ -2007,4 +2103,5 @@ window.iniciarTreinoPrincipal = function(){
   saveDraft(treinoDraft);
   renderTreino();
 };
+
 
