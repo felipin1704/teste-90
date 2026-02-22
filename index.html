@@ -1,240 +1,1402 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-  <title>Ficha de Treino</title>
+/* ====== BASE ====== */
+:root{
+  --bg: #0b0b0c;
+  --card: rgba(255,255,255,.06);
+  --card2: rgba(255,255,255,.04);
+  --stroke: rgba(255,255,255,.10);
+  --txt: #e9eef6;
+  --muted: rgba(233,238,246,.70);
+  --muted2: rgba(233,238,246,.55);
+  --accent: #3b82f6;
+  --ok: #22c55e;
+  --warn: #f59e0b;
+  --bad: #ef4444;
+  --radius: 22px;
+  --shadow: 0 18px 50px rgba(0,0,0,.45);
+}
 
-  <!-- ✅ cache-buster: MUDA a cada atualização -->
-  <link rel="stylesheet" href="./style.css?v=20260220-2" />
-</head>
-
-<body class="mode-home">
-  <div class="page">
-
-    <header class="topbar">
-      <div class="brand">
-        <div class="brand-text">
-          <h1>💪 Ficha de Treino</h1>
-          <p class="sub">Registre cargas, veja evolução e tenha sugestão automática de progressão.</p>
-        </div>
-      </div>
-
-      <div class="topbar-actions">
-        <div class="chip chip-accent">
-          <span class="chip-muted">Home</span>
-          <span class="chip-strong">Escolha um treino</span>
-        </div>
-      </div>
-    </header>
-
-    <!-- HOME -->
-    <section class="home" id="home">
-            <div class="home-hero home-start">
-        <div class="hero-kicker hero-title-big">Escolha seu treino</div>
-
-        <div class="hero-form">
-          <div class="hero-field">
-            <label for="goalSelect">🎯 Objetivo</label>
-            <select id="goalSelect">
-              <option value="hipertrofia">Hipertrofia</option>
-              <option value="forca">Força</option>
-              <option value="emagrecimento">Emagrecimento</option>
-            </select>
-          </div>
-
-          <div class="hero-field">
-            <label for="levelSelect">📈 Nível</label>
-            <select id="levelSelect">
-              <option value="iniciante">Iniciante</option>
-              <option value="intermediario" selected>Intermediário</option>
-              <option value="avancado">Avançado</option>
-            </select>
-          </div>
-
-          
-          <div class="hero-field">
-            <label for="sexSelect">🧑‍🦱 Sexo</label>
-            <select id="sexSelect">
-              <option value="homem" selected>Homem</option>
-              <option value="mulher">Mulher</option>
-            </select>
-          </div>
-<div class="hero-field">
-            <label for="focusSelect">🏋️ Tipo</label>
-            <select id="focusSelect">
-              <option value="superior">Superior</option>
-              <option value="inferior" selected>Inferior</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="hero-quote" id="fraseMotivacional">“Hoje é dia de evoluir.”</div>
-
-        <button class="hero-btn" id="btnComecarTreino" type="button" onclick="iniciarTreinoHome()">
-          🚀 Começar treino
-        </button>
-
-        <button class="hero-btn hero-btn-secondary" id="btnAbrirBiblioteca" type="button" onclick="abrirSelecaoDiaBuilder()">
-          🧩 Montar treino do dia
-        </button>
-
-        <button class="hero-btn hero-btn-secondary" id="btnAbrirTreinosSalvos" type="button" onclick="abrirTreinosSalvos()">
-          ⭐ Treino salvo
-        </button>
-
-        
-        <button class="hero-btn hero-btn-secondary" id="btnGerarDivisao" type="button" onclick="gerarDivisaoAutomatica()">
-          ✨ Gerar divisão automática
-        </button>
-<div class="hero-pick" id="treinoSelecionadoLabel">Dica: escolha objetivo, nível e tipo para recomendar seu treino.</div>
-      </div>
-
-      <!-- BIBLIOTECA / MONTADOR -->
-      <section class="builder card" id="builder" aria-hidden="true">
-        <div class="builder-top">
-          <div>
-            <h2 class="builder-title">Biblioteca de Exercícios</h2>
-            <p class="builder-sub">Busque, filtre e selecione os exercícios do dia.</p>
-
-            <!-- ✅ Dia selecionado (opcional) -->
-            <div id="builderSelectedDay" class="builder-day-label" style="display:none;"></div>
-          </div>
-          <button class="btn ghost builder-close" type="button" onclick="fecharBiblioteca()">✖ Fechar</button>
-        </div>
-
-        <!-- ✅ CONTROLES MOVIDOS PARA CIMA (sem precisar rolar tudo) -->
-        <div class="builder-quick">
-          <div class="builder-bottom">
-            <div class="builder-count" id="builderCount">0 selecionados</div>
-            <div class="builder-actions">
-              <button class="btn" type="button" onclick="limparBiblioteca()">Limpar</button>
-              <button class="btn success" id="btnComecarMontado" type="button" onclick="comecarTreinoMontado()">🚀 Começar treino</button>
-            </div>
-          </div>
-
-          <div class="builder-save">
-            <input class="builder-save-input" id="builderWorkoutName" type="text" placeholder="💾 Nome do treino (ex: Pernas A)"/>
-            <button class="btn primary" id="btnSalvarTreinoMontado" type="button" onclick="salvarTreinoMontado()">⭐ Salvar treino</button>
-          </div>
-
-          <div class="builder-saved" id="builderSavedWrap">
-            <div class="builder-saved-top">
-              <div class="builder-saved-title">Treinos salvos</div>
-              <button class="btn ghost" type="button" onclick="limparTreinosSalvos()">Limpar</button>
-            </div>
-            <div class="builder-saved-list" id="builderSavedList"></div>
-          </div>
-        </div>
-
-        <!-- Busca + filtros -->
-        <div class="builder-controls">
-          <input class="builder-search" id="builderSearch" type="text" placeholder="🔎 Buscar exercício (ex: supino, agachamento)"/>
-          <div class="builder-filters" id="builderFilters"></div>
-        </div>
-
-        <!-- Lista -->
-        <div class="builder-list" id="builderList"></div>
-      </section>
-
-            <details class="home-details">
-        <summary class="home-details-summary">Ver treinos completos</summary>
-        <div class="home-grid" id="listaTreinos">
-        <button class="card train" data-treino="Inferior 1" type="button" onclick="selecionarTreino('Inferior 1')">
-          <div class="train-top"><h3>🦵 Treino Completo Inferior 1</h3><span class="arrow">→</span></div>
-      </details>
-    </section>
-
-    <!-- WORKAREA -->
-    <section class="workarea" id="workarea">
-      <div class="card progresso" id="progressoGeral">
-        <div class="prog-top">
-          <div id="progressoTexto">Progresso: 0/0 séries</div>
-          <div id="progressoPct">0%</div>
-        </div>
-        <div class="prog-bar">
-          <div class="prog-fill" id="progressoFill" style="width:0%"></div>
-        </div>
-      </div>
-
-      <div class="acoes" id="acoes">
-        <div class="acoes-left">
-          <button class="btn" type="button" onclick="salvarSessao()">💾 Salvar treino</button>
-          <button class="btn success" type="button" onclick="finalizarTreino()">✅ Finalizar</button>
-        </div>
-        <div class="acoes-right">
-          <div class="chip" id="volumeTotalChip">🔥 Volume do dia: 0 kg</div>
-          <canvas id="miniChart" class="mini-chart" width="220" height="64"></canvas>
-        </div>
-      </div>
-
-      <div class="card cronometro" id="cronometro">
-        <div class="cron-top">
-          <div id="cronometroTexto">⏱️ Descanso: 0s</div>
-          <button class="btn ghost" type="button" onclick="pararDescanso()">✖ Parar</button>
-        </div>
-        <div class="prog-bar">
-          <div class="prog-fill" id="barraProgresso" style="width:0%"></div>
-        </div>
-      </div>
-
-      <main id="treino"></main>
-
-      <footer class="rodape">
-        <span>⚡ Dica: tente bater o topo da faixa de reps para subir a carga automaticamente.</span>
-      </footer>
-    </section>
-
-  </div>
-
-  <nav class="bottom-nav" id="bottomNav">
-    <button class="bn-item" id="bnHome" type="button" onclick="mostrarHome()">
-      <span class="bn-ico">🏠</span><span class="bn-txt">Home</span>
-    </button>
-    <button class="bn-item" id="bnTreino" type="button" onclick="voltarTreinoAtual()">
-      <span class="bn-ico">💪</span><span class="bn-txt">Treino</span>
-    </button>
-    <button class="bn-item" id="bnHist" type="button" onclick="verHistorico()">
-      <span class="bn-ico">📊</span><span class="bn-txt">Histórico</span>
-    </button>
-  </nav>
+*{ 
+box-sizing:border-box;
+-webkit-tap-highlight-color: transparent;
+}
+html,body{ height:100%; }
+body{
+  margin:0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  color: var(--txt);
+  background: linear-gradient(180deg, #070708 0%, #0b0b0c 45%, #070708 100%);
+}
 
 
-  <!-- ===== Modal: escolher dia da semana (Montar treino do dia) ===== -->
-  <div class="day-modal" id="dayModal" aria-hidden="true">
-    <div class="day-modal-card">
-      <div class="day-modal-top">
-        <h2 class="day-modal-title">Qual dia você quer montar?</h2>
-        <button class="btn ghost" type="button" onclick="fecharSelecaoDiaBuilder()">✖</button>
-      </div>
-      <p class="day-modal-sub">Escolha o dia e monte o treino. Ao salvar, ele fica vinculado ao dia.</p>
 
-      <div class="day-grid">
-        <button class="day-btn" type="button" onclick="selecionarDiaBuilder('Segunda')">Segunda</button>
-        <button class="day-btn" type="button" onclick="selecionarDiaBuilder('Terça')">Terça</button>
-        <button class="day-btn" type="button" onclick="selecionarDiaBuilder('Quarta')">Quarta</button>
-        <button class="day-btn" type="button" onclick="selecionarDiaBuilder('Quinta')">Quinta</button>
-        <button class="day-btn" type="button" onclick="selecionarDiaBuilder('Sexta')">Sexta</button>
-        <button class="day-btn" type="button" onclick="selecionarDiaBuilder('Sábado')">Sábado</button>
-        <button class="day-btn" type="button" onclick="selecionarDiaBuilder('Domingo')">Domingo</button>
-      </div>
+.page{
+  width:min(1100px, 94vw);
+  margin: 18px auto 26px;
+}
 
-      <div class="day-modal-bottom">
-        <button class="btn" type="button" onclick="selecionarDiaBuilder(null)">Pular (sem dia)</button>
-      </div>
-    </div>
-  </div>
+/* ====== TOPBAR ====== */
+.topbar{
+  display:flex;
+  gap:16px;
+  align-items:center;
+  justify-content:space-between;
+  padding: 18px 18px;
+  border:1px solid var(--stroke);
+  background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.04));
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
 
-  <!-- ✅ cache-buster no script também -->
-  <script defer src="./script.js?v=20260220-2"></script>
+.brand{
+  display:flex;
+  gap:14px;
+  align-items:center;
+}
+.logo{
+  width:56px;
+  height:56px;
+  border-radius: 999px;
+  object-fit: contain;
+  border:none;
+  background: transparent;
+}
 
-  <!-- ❌ IMPORTANTE: por enquanto NÃO registrar service worker (cache atrapalha muito) -->
-  <!-- <script>
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("./service-worker.js");
-    }
-  </script> -->
-</body>
-</html>
+.brand-text h1{
+  font-size:20px;
+  margin:0;
+}
+.sub{
+  margin:4px 0 0;
+  color: var(--muted);
+  font-size:13px;
+}
 
+.topbar-actions{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
+
+.chip{
+  border:1px solid var(--stroke);
+  background: rgba(255,255,255,.03);
+  border-radius: 999px;
+  padding: 10px 12px;
+  display:flex;
+  gap:8px;
+  align-items:center;
+  white-space:nowrap;
+}
+.chip-accent{
+  border-color: rgba(59,130,246,.35);
+  background: rgba(59,130,246,.12);
+}
+.chip-muted{ color: var(--muted2); font-size:12px; }
+.chip-strong{ font-weight:800; font-size:13px; }
+
+.btn{
+  border:1px solid var(--stroke);
+  background: rgba(255,255,255,.04);
+  color: var(--txt);
+  padding: 10px 12px;
+  border-radius: 16px;
+  cursor:pointer;
+  font-weight:700;
+}
+.btn:active{ transform: translateY(1px); }
+.btn.primary{
+  border-color: rgba(59,130,246,.35);
+  background: rgba(59,130,246,.18);
+}
+.btn.ghost{
+  background: rgba(255,255,255,.03);
+}
+.btn.success{
+  border-color: rgba(34,197,94,.35);
+  background: rgba(34,197,94,.18);
+}
+
+/* ====== HOME ====== */
+.home{ margin-top: 16px; }
+.home-grid{
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 14px;
+}
+.card{
+  border:1px solid var(--stroke);
+  background: linear-gradient(180deg, rgba(20,20,22,.92), rgba(14,14,16,.88));
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px;
+}
+
+.train{
+  text-align:left;
+  cursor:pointer;
+  transition: transform .12s ease;
+}
+.train:hover{ transform: translateY(-2px); }
+.train-top{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+}
+.train h3{
+  margin:0;
+  font-size:18px;
+}
+.arrow{
+  opacity:.7;
+  font-size:18px;
+}
+.sub2{ margin:8px 0 6px; color: var(--muted); }
+.meta{ margin:0; color: var(--muted2); font-size:12px; }
+
+/* ====== WORKAREA ====== */
+.workarea{ margin-top: 16px; }
+
+.progresso{ display:none; }
+.prog-top{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  font-weight:800;
+}
+.prog-bar{
+  margin-top:10px;
+  height:10px;
+  border-radius: 999px;
+  overflow:hidden;
+  background: rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.08);
+}
+.prog-fill{
+  height:100%;
+  background: linear-gradient(90deg, rgba(59,130,246,.95), rgba(34,197,94,.85));
+  width:0%;
+}
+
+.acoes{
+  display:none;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+  margin-top:12px;
+  margin-bottom: 14px;
+}
+.acoes-left{ display:flex; gap:10px; flex-wrap:wrap; }
+.acoes-right{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+
+/* ====== TREINO CARDS ====== */
+.card-top{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:flex-start;
+  flex-wrap:wrap;
+}
+.titulo{ margin:0; }
+.h-title{ margin:0; }
+.miniinfo{
+  margin-top:6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.small{
+  margin-top:10px;
+  color: var(--muted2);
+  font-size: 12px;
+}
+
+.badges{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
+.badge{
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.04);
+  padding: 7px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--txt);
+}
+.badge.good{ border-color: rgba(34,197,94,.35); background: rgba(34,197,94,.12); }
+.badge.warn{ border-color: rgba(245,158,11,.35); background: rgba(245,158,11,.12); }
+.badge.bad{ border-color: rgba(239,68,68,.35); background: rgba(239,68,68,.12); }
+
+.series{
+  margin-top: 12px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.serie{
+  display:grid;
+  grid-template-columns: 110px 1fr 1fr 180px 110px;
+  gap:10px;
+  align-items:center;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.03);
+  border-radius: 18px;
+  padding: 12px;
+}
+.slabel{ color: var(--muted); font-weight:700; }
+
+input{
+  width:100%;
+  padding: 12px 12px;
+  border-radius: 14px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.28);
+  color: var(--txt);
+  outline:none;
+}
+input::placeholder{ color: rgba(233,238,246,.45); }
+
+.btns{
+  display:flex;
+  gap:8px;
+  justify-content:flex-end;
+}
+.rest{
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.04);
+  color: var(--txt);
+  padding: 10px 10px;
+  border-radius: 14px;
+  cursor:pointer;
+  font-weight:800;
+}
+.ok{
+  border:1px solid rgba(34,197,94,.35);
+  background: rgba(34,197,94,.20);
+  color: var(--txt);
+  padding: 10px 12px;
+  border-radius: 14px;
+  cursor:pointer;
+  font-weight:900;
+}
+
+/* ====== BOTÕES SECUNDÁRIOS ====== */
+.sec{
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.04);
+  color: var(--txt);
+  padding: 10px 12px;
+  border-radius: 14px;
+  cursor:pointer;
+  font-weight:800;
+}
+.sec.mini{
+  padding: 9px 12px;
+  border-radius: 14px;
+}
+
+/* ====== CRONÔMETRO ====== */
+.cronometro{ display:none; margin-top: 12px; }
+.cron-top{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  align-items:center;
+}
+
+/* ====== HISTÓRICO ====== */
+.hist-item{
+  margin-top: 12px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.03);
+  border-radius: 20px;
+  padding: 14px;
+}
+.hist-top{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+  color: var(--muted);
+}
+.hist-ex{ margin-top: 10px; display:flex; flex-direction:column; gap:10px; }
+.hist-ex-row{
+  border:1px solid rgba(255,255,255,.08);
+  background: rgba(0,0,0,.20);
+  border-radius: 16px;
+  padding: 10px 12px;
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+}
+
+/* ====== MODAL GIF ====== */
+.modal-gif{
+  position:fixed;
+  inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  background: rgba(0,0,0,.65);
+  z-index: 9999;
+  padding: 16px;
+}
+.modal-content{
+  width: min(720px, 96vw);
+  border-radius: 22px;
+  border:1px solid rgba(255,255,255,.12);
+  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+  box-shadow: 0 18px 60px rgba(0,0,0,.55);
+  overflow:hidden;
+}
+.modal-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  padding: 12px 14px;
+  border-bottom:1px solid rgba(255,255,255,.10);
+}
+.modal-title{ margin:0; font-size:18px; }
+.modal-close{
+  border:1px solid rgba(239,68,68,.35);
+  background: rgba(239,68,68,.14);
+  color: var(--txt);
+  padding: 10px 12px;
+  border-radius: 14px;
+  cursor:pointer;
+  font-weight:900;
+}
+.modal-body{
+  padding: 14px;
+  max-height: 70vh;
+  overflow:auto;
+}
+#modalGifImg{
+  width:100%;
+  height:auto;
+  border-radius: 18px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.25);
+}
+
+/* ====== RODAPÉ ====== */
+.rodape{
+  margin: 16px 2px 0;
+  color: rgba(233,238,246,.55);
+  text-align:center;
+  font-size: 12px;
+}
+
+/* ====== RESPONSIVO ====== */
+@media (max-width: 860px){
+  .home-grid{ grid-template-columns: 1fr; }
+  .serie{ grid-template-columns: 1fr 1fr; }
+}
+
+/* ===========================
+   MELHORIAS MOBILE (2026) ✅
+   =========================== */
+
+.mini-chart{ display:none; width:220px; height:64px; opacity:.9; margin-left:10px; border-radius:14px; background:rgba(255,255,255,.04); }
+
+.fab{
+  position:fixed;
+  right:14px;
+  width:52px;
+  height:52px;
+  border-radius:18px;
+  border:1px solid rgba(255,255,255,.14);
+  background:rgba(20,24,30,.92);
+  box-shadow: 0 12px 28px rgba(0,0,0,.35);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  font-size:20px;
+  z-index:9999;
+  backdrop-filter: blur(12px);
+}
+.fab:active{ transform: translateY(1px) scale(.99); }
+.fab-save{ bottom: calc(76px + env(safe-area-inset-bottom)); }
+.fab-top{ bottom: calc(138px + env(safe-area-inset-bottom)); opacity:.85; }
+
+.bottom-nav{
+  position:fixed;
+  left:0; right:0;
+  bottom:0;
+  padding:10px 12px calc(10px + env(safe-area-inset-bottom));
+  background: rgba(10,10,12,.86);
+  border-top:1px solid rgba(255,255,255,.10);
+  display:none;
+  gap:10px;
+  z-index:9998;
+  backdrop-filter: blur(14px);
+}
+.bn-item{
+  flex:1;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.04);
+  border-radius:16px;
+  padding:10px 8px;
+  color:#e9eef6;
+  display:flex;
+  gap:8px;
+  align-items:center;
+  justify-content:center;
+}
+.bn-item.is-active{
+  background: rgba(59,130,246,.22);
+  border-color: rgba(59,130,246,.42);
+}
+.bn-ico{ font-size:18px; line-height:1; }
+.bn-txt{ font-size:12px; opacity:.95; }
+
+/* Ajustes de layout: espaço para a barra inferior */
+@media (max-width: 720px){
+  .topbar-actions .btn{ display:none; } /* botões grandes somem no mobile (vai pra barra inferior) */
+  .mini-chart{ display:block; }
+  .page{ padding-bottom: 92px; } /* espaço p/ bottom-nav */
+  .bottom-nav{ display:flex; }
+  .fab{ display:flex; }
+}
+
+/* Séries mais “mobile friendly” */
+@media (max-width: 520px){
+  .serie{
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "label label"
+      "peso reps"
+      "btns status";
+    gap:10px;
+  }
+  .serie .slabel:nth-child(1){ grid-area: label; }
+  .serie input[data-type="peso"]{ grid-area: peso; }
+  .serie input[data-type="reps"]{ grid-area: reps; }
+  .serie .btns{ grid-area: btns; justify-content:flex-start; }
+  .serie .slabel:last-child{ grid-area: status; text-align:right; }
+}
+
+/* Modal GIF: melhor no celular */
+@media (max-width: 520px){
+  .modal-content{
+    width: min(96vw, 520px);
+    border-radius: 18px;
+  }
+  .modal-body{
+    max-height: 62vh;
+  }
+  #modalGifImg{
+    width:100%;
+    height:auto;
+    border-radius: 14px;
+    background: rgba(0,0,0,.25);
+  }
+  .modal-close{
+    padding:10px 12px;
+  }
+}
+
+
+/* ===========================
+   HOME HERO PREMIUM (Mobile-first) ✅
+   =========================== */
+.home-hero{
+  margin-top: 14px;
+  padding: 18px 16px;
+  border:1px solid rgba(255,255,255,.10);
+  background: linear-gradient(180deg, rgba(20,20,22,.92), rgba(14,14,16,.88));
+  border-radius: 24px;
+  box-shadow: 0 18px 50px rgba(0,0,0,.45);
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:10px;
+}
+
+.hero-logo{
+  width: 84px;
+  height: 84px;
+  border-radius: 22px;
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.03);
+  object-fit: cover;
+}
+
+.hero-title{
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: .2px;
+  margin-top: 2px;
+}
+
+.hero-sub{
+  color: rgba(233,238,246,.70);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.hero-quote{
+  margin-top: 8px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  border:1px solid rgba(59,130,246,.26);
+  background: rgba(59,130,246,.10);
+  color: rgba(233,238,246,.92);
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.hero-btn{
+  margin-top: 6px;
+  width: 100%;
+  min-height: 48px;
+  border-radius: 18px;
+  border:1px solid rgba(59,130,246,.42);
+  background: rgba(59,130,246,.22);
+  color: #e9eef6;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.hero-btn:active{ transform: translateY(1px) scale(.99); }
+
+/* Deixa a topbar mais “app-like” no mobile */
+@media (max-width: 720px){
+  .topbar-actions .btn{ display:none; } /* mantém a navegação pela barra inferior */
+  .home-hero{ border-radius: 22px; }
+  .hero-title{ font-size: 24px; }
+  .hero-logo{ width: 76px; height: 76px; border-radius: 20px; }
+}
+
+/* Mobile pequeno */
+@media (max-width: 380px){
+  .hero-title{ font-size: 22px; }
+  .hero-quote{ font-size: 13px; }
+}
+
+
+/* ===========================
+   HOME HERO PREMIUM (v2) ✅
+   - sem título duplicado
+   - logo sem "quadrado"
+   - botão funciona
+   =========================== */
+.home-hero{
+  margin-top: 14px;
+  padding: 18px 16px;
+  border:1px solid rgba(255,255,255,.10);
+  background: linear-gradient(180deg, rgba(20,20,22,.92), rgba(14,14,16,.88));
+  border-radius: 24px;
+  box-shadow: 0 18px 50px rgba(0,0,0,.45);
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:12px;
+}
+
+.hero-logo{
+  width: 96px;
+  height: 96px;
+  border-radius: 999px;
+  object-fit: contain;
+  border: none;
+  background: transparent;
+  filter: drop-shadow(0 10px 18px rgba(0,0,0,.35));
+}
+
+.hero-kicker{
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: .2px;
+  opacity: .95;
+}
+
+.hero-quote{
+  padding: 12px 14px;
+  border-radius: 18px;
+  border:1px solid rgba(59,130,246,.26);
+  background: rgba(59,130,246,.10);
+  color: rgba(233,238,246,.92);
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.hero-btn{
+  width: 100%;
+  min-height: 52px;
+  border-radius: 18px;
+  border:1px solid rgba(59,130,246,.42);
+  background: rgba(59,130,246,.22);
+  color: #e9eef6;
+  font-weight: 900;
+  cursor: pointer;
+}
+.hero-btn:active{ transform: translateY(1px) scale(.99); }
+
+/* ✅ volta o espaçamento ENTRE exercícios (cards) */
+.workarea .card{
+  margin-bottom: 32px;
+}
+.workarea .card:last-child{
+  margin-bottom: 0;
+}
+
+@media (max-width: 720px){
+  .hero-logo{ width: 88px; height: 88px; }
+}
+
+
+/* ===========================
+   Ajustes pedidos (v3) ✅
+   - Espaço entre Volume do dia e cabeçalho do treino
+   - Cabeçalho do treino com fundo diferente
+   - Home: seleção de treino + botão começar
+   =========================== */
+
+/* Cabeçalho do treino (Inferior 1 • data) com cor diferente */
+.treino-header{
+  border-color: rgba(59,130,246,.28);
+  background: linear-gradient(180deg, rgba(59,130,246,.14), rgba(14,14,16,.88));
+}
+
+/* Espaço extra entre a barra de ações e o primeiro card do treino */
+.acoes{ margin-bottom: 14px; }
+
+/* Home: texto do treino selecionado */
+.hero-pick{
+  color: rgba(233,238,246,.80);
+  font-weight: 800;
+  font-size: 13px;
+  opacity: .95;
+}
+
+/* Home: card selecionado */
+.train.is-selected{
+  border-color: rgba(59,130,246,.55) !important;
+  background: rgba(59,130,246,.16) !important;
+  transform: translateY(-1px);
+}
+
+/* Botão começar desabilitado (quando não escolheu treino) */
+.hero-btn.is-disabled{
+  opacity: .55;
+  filter: grayscale(.25);
+}
+
+
+/* ===========================
+   Fix v4 ✅
+   - reduzir espaço entre HERO e lista de treinos
+   - garantir que Home some no Treino/Histórico (fallback)
+   =========================== */
+#listaTreinos{ margin-top: 14px; }
+.home-hero{ margin-bottom: 0; }
+
+/* Fallback de visibilidade por classe no body */
+body.is-workarea #home{ display: none !important; }
+body.is-home #workarea{ display: none !important; }
+
+/* ===========================
+   FIX: Home e Treino aparecendo juntos (Safari/iOS) ✅
+   - força esconder workarea no Home e vice-versa
+   =========================== */
+#workarea{ display:none; }
+body.mode-home #workarea{ display:none !important; }
+body.mode-work #home{ display:none !important; }
+body.mode-work #workarea{ display:block !important; }
+
+/* Home: aproxima botão da lista */
+.home-hero{ margin-bottom: 12px; }
+#listaTreinos{ margin-top: 10px; }
+
+
+
+/* ===========================
+   BUILDER / BIBLIOTECA DE EXERCÍCIOS ✅
+   =========================== */
+.hero-btn-secondary{
+  margin-top: 10px;
+  border-color: rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06);
+}
+.hero-btn-secondary:active{ transform: translateY(1px) scale(.99); }
+
+.builder{
+  display:none; /* aparece quando abrir */
+  margin-top: 12px;
+  padding: 16px;
+}
+
+body.mode-builder #builder{ display:block !important; }
+body.mode-builder #listaTreinos{ display:none !important; }
+body.mode-builder .home-hero{ display:none !important; }
+
+.builder-top{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom: 12px;
+}
+.builder-title{
+  margin:0;
+  font-size: 18px;
+  font-weight: 900;
+}
+.builder-sub{
+  margin:4px 0 0;
+  color: rgba(233,238,246,.70);
+  font-size: 12px;
+  line-height: 1.35;
+}
+.builder-close{ white-space: nowrap; }
+
+.builder-controls{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  margin-bottom: 12px;
+}
+.builder-search{
+  width:100%;
+  min-height: 44px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.04);
+  color: rgba(233,238,246,.92);
+  padding: 10px 12px;
+  outline:none;
+}
+.builder-search::placeholder{ color: rgba(233,238,246,.45); }
+
+.builder-filters{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.filter-chip{
+  border-radius: 999px;
+  padding: 8px 10px;
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.04);
+  color: rgba(233,238,246,.85);
+  font-weight: 800;
+  font-size: 12px;
+  cursor:pointer;
+}
+.filter-chip.is-active{
+  border-color: rgba(59,130,246,.55);
+  background: rgba(59,130,246,.16);
+}
+
+.builder-list{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  margin-bottom: 12px;
+}
+.ex-item{
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  padding: 12px;
+  border-radius: 18px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.03);
+}
+.ex-item.is-checked{
+  border-color: rgba(59,130,246,.55);
+  background: rgba(59,130,246,.12);
+}
+.ex-check{
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+}
+.ex-main{ flex:1; }
+.ex-name{ margin:0 0 4px; font-weight: 900; }
+.ex-meta{ margin:0; color: rgba(233,238,246,.70); font-size: 12px; line-height: 1.35; }
+.ex-tag{
+  display:inline-block;
+  margin-top: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 6px 8px;
+  border-radius: 999px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.04);
+  color: rgba(233,238,246,.85);
+}
+
+.builder-bottom{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.builder-actions{
+  display:flex;
+  gap:8px;
+}
+#btnComecarMontado[disabled]{
+  opacity: .55;
+  filter: grayscale(.25);
+}
+
+
+
+/* ===========================
+   BUILDER PREMIUM (Favoritos + Salvar + Ordem) ✅
+   =========================== */
+.builder-save{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:wrap;
+  margin-top: 12px;
+}
+.builder-save-input{
+  flex:1;
+  min-width: 160px;
+  padding: 12px 12px;
+  border-radius: 16px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.28);
+  color: var(--txt);
+}
+
+.builder-saved{
+  margin-top: 12px;
+  padding: 12px;
+  border:1px solid rgba(255,255,255,.10);
+  border-radius: 18px;
+  background: rgba(255,255,255,.03);
+}
+.builder-saved-top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom: 10px;
+}
+.builder-saved-title{
+  font-weight: 900;
+  font-size: 13px;
+  color: rgba(233,238,246,.88);
+}
+.builder-saved-list{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.saved-card{
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.20);
+  border-radius: 16px;
+  padding: 10px 12px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.saved-name{ font-weight: 900; }
+.saved-meta{ color: rgba(233,238,246,.65); font-size: 12px; margin-top: 2px; }
+.saved-actions{ display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+.small-btn{
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.04);
+  color: var(--txt);
+  padding: 8px 10px;
+  border-radius: 14px;
+  cursor:pointer;
+  font-weight: 800;
+  font-size: 12px;
+}
+.small-btn.primary{
+  border-color: rgba(59,130,246,.35);
+  background: rgba(59,130,246,.18);
+}
+.small-btn.bad{
+  border-color: rgba(239,68,68,.35);
+  background: rgba(239,68,68,.14);
+}
+
+/* Item da biblioteca com ações (⭐ + ordem) */
+.ex-item{
+  position: relative;
+}
+.ex-actions{
+  position:absolute;
+  right:10px;
+  top:10px;
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+.star-btn{
+  width:34px; height:34px;
+  border-radius: 12px;
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.04);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size: 16px;
+}
+.star-btn.is-on{
+  border-color: rgba(245,158,11,.40);
+  background: rgba(245,158,11,.16);
+}
+.move-btn{
+  width:34px; height:34px;
+  border-radius: 12px;
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.04);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size: 14px;
+}
+.move-btn:active,.star-btn:active,.small-btn:active{ transform: translateY(1px); }
+
+
+/* ✅ Esconde o header grandão só no HOME */
+body.mode-home .topbar{ display:none !important; }
+body.mode-home .page{ padding-top: 14px; }
+
+/* ✅ Mini demonstração (GIF) na Biblioteca */
+.ex-demo{
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  object-fit: cover;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.03);
+}
+
+
+/* ✅ Badge + GIF lado a lado (Biblioteca) */
+.ex-badge-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+
+/* ===========================
+   HOME (tela inicial) - Layout igual ao print ✅
+   =========================== */
+
+.home-hero.home-start{
+  max-width: 640px;
+  margin: 18px auto 0;
+  align-items: stretch;
+}
+
+.hero-title-big{
+  font-size: 26px;
+  font-weight: 1000;
+}
+
+.hero-form{
+  display:flex;
+  flex-direction:column;
+  gap: 14px;
+  margin-top: 6px;
+}
+
+.hero-field label{
+  display:block;
+  font-weight: 900;
+  margin: 0 0 8px;
+  color: rgba(233,238,246,.92);
+}
+
+.hero-field select{
+  width:100%;
+  height: 56px;
+  border-radius: 16px;
+  padding: 0 14px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.28);
+  color: var(--txt);
+  font-weight: 800;
+  outline:none;
+  appearance: none;
+}
+
+.hero-field select:focus{
+  border-color: rgba(59,130,246,.45);
+  box-shadow: 0 0 0 3px rgba(59,130,246,.14);
+}
+
+.home-details{
+  margin-top: 14px;
+}
+
+.home-details-summary{
+  list-style: none;
+  cursor: pointer;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.04);
+  color: var(--txt);
+  padding: 12px 14px;
+  border-radius: 16px;
+  font-weight: 900;
+}
+
+.home-details-summary::-webkit-details-marker{ display:none; }
+
+.home-details[open] .home-grid{
+  margin-top: 12px;
+}
+
+/* No builder, já escondemos a lista e a hero — mantém aqui por segurança */
+body.mode-builder .home-details{ display:none !important; }
+/* ✅ Some COMPLETO "Ver treinos completos" (sem mexer no resto) */
+body.mode-home .home-details{
+  display: none !important;
+}
+/* ✅ No celular: esconder a TOPBAR no modo treino/histórico (fica só a barra inferior) */
+@media (max-width: 720px){
+  body.mode-work .topbar,
+  body.mode-history .topbar{
+    display: none !important;
+  }
+
+  body.mode-work .page,
+  body.mode-history .page{
+    margin-top: 14px !important;
+  }
+}
+
+/* ✅ Garantia extra: Home nunca aparece junto com o Treino */
+body.mode-work #home,
+body.mode-history #home{
+  display: none !important;
+}
+
+
+
+
+
+
+
+/* ===========================
+   SELEÇÃO DE TREINO (mais visível) ✅
+   - deixa MUITO claro quando clicou
+   - inclui etiqueta "Selecionado"
+   =========================== */
+.train{ position: relative; }
+
+.train.is-selected{
+  outline: 2px solid rgba(59,130,246,.95) !important;
+  border-color: rgba(59,130,246,.85) !important;
+  background: rgba(59,130,246,.22) !important;
+  box-shadow:
+    0 0 0 4px rgba(59,130,246,.18),
+    0 18px 50px rgba(0,0,0,.45) !important;
+  transform: translateY(-2px) !important;
+}
+
+.train.is-selected::after{
+  content: "✅ Selecionado";
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  border: 1px solid rgba(59,130,246,.55);
+  background: rgba(59,130,246,.26);
+  color: rgba(233,238,246,.95);
+}
+
+/* Mobile: evita hover enganar e melhora toque */
+@media (max-width: 720px){
+  .train:hover{ transform: none; }
+}
+
+
+
+
+/* ==============================
+   🔥 UI PREMIUM UPGRADE (v1)
+   - deixa com cara de app premium
+   ============================== */
+
+/* Fundo com luz no topo (bem visível) */
+body{
+  background:
+    radial-gradient(circle at 50% -10%, rgba(59,130,246,.22), transparent 42%),
+    radial-gradient(circle at 10% 20%, rgba(34,197,94,.10), transparent 45%),
+    linear-gradient(180deg, #050506 0%, #0b0b0c 55%, #040405 100%) !important;
+}
+
+/* Topbar com mais destaque */
+.topbar{
+  background:
+    radial-gradient(circle at 20% 0%, rgba(59,130,246,.16), transparent 45%),
+    linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03)) !important;
+  border-color: rgba(255,255,255,.12) !important;
+}
+
+/* Cards mais premium */
+.card{
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255,255,255,.08);
+  box-shadow:
+    0 10px 36px rgba(0,0,0,.52),
+    inset 0 1px 0 rgba(255,255,255,.05);
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+.card:hover{
+  transform: translateY(-2px);
+  border-color: rgba(59,130,246,.20);
+  box-shadow:
+    0 14px 46px rgba(0,0,0,.60),
+    0 0 0 4px rgba(59,130,246,.08),
+    inset 0 1px 0 rgba(255,255,255,.06);
+}
+
+/* Botões com mais presença */
+.btn, .hero-btn{
+  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease, background .12s ease;
+}
+.btn:hover, .hero-btn:hover{
+  box-shadow: 0 10px 26px rgba(0,0,0,.25);
+}
+.btn:active, .hero-btn:active{
+  transform: translateY(1px) scale(.99);
+}
+
+/* Exercício: título maior e mais limpo */
+.titulo{
+  font-size: 20px;
+  font-weight: 950;
+  letter-spacing: .2px;
+}
+
+/* Cabeçalho do exercício separadinho */
+.card-top{
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+}
+
+/* Séries com vidro e hover */
+.serie{
+  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02)) !important;
+  border:1px solid rgba(255,255,255,.09) !important;
+}
+.serie:hover{
+  border-color: rgba(59,130,246,.35) !important;
+}
+
+/* Inputs mais modernos */
+input{
+  background: rgba(255,255,255,.06) !important;
+  border: 1px solid rgba(255,255,255,.10) !important;
+  font-weight: 650;
+}
+input:focus{
+  border-color: rgba(59,130,246,.60) !important;
+  box-shadow: 0 0 0 3px rgba(59,130,246,.18) !important;
+}
+
+/* Progresso com glow */
+.prog-fill{
+  box-shadow: 0 0 14px rgba(59,130,246,.42);
+}
+
+/* Seleção do treino (bem evidente) */
+.train{ position:relative; }
+.train.is-selected{
+  outline: 2px solid rgba(59,130,246,.95) !important;
+  border-color: rgba(59,130,246,.85) !important;
+  background: rgba(59,130,246,.22) !important;
+  box-shadow:
+    0 0 0 4px rgba(59,130,246,.18),
+    0 18px 50px rgba(0,0,0,.45) !important;
+  transform: translateY(-2px) !important;
+}
+.train.is-selected::after{
+  content: "✅ Selecionado";
+  position:absolute;
+  top:12px;
+  right:12px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  border: 1px solid rgba(59,130,246,.55);
+  background: rgba(59,130,246,.26);
+  color: rgba(233,238,246,.95);
+}
+
+/* Animação suave ao entrar */
+.workarea{
+  animation: fadeInWork .35s ease;
+}
+@keyframes fadeInWork{
+  from{ opacity:0; transform: translateY(10px); }
+  to{ opacity:1; transform: translateY(0); }
+}
+
+
+/* ===========================
+   BUILDER: CONTROLES NO TOPO (sticky) ✅
+   =========================== */
+.builder-quick{
+  position: sticky;
+  top: 10px;
+  z-index: 30;
+  background: rgba(14,14,16,.65);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 18px;
+  padding: 12px;
+  margin-bottom: 12px;
+  backdrop-filter: blur(12px);
+}
+
+.builder-day-label{
+  margin-top: 8px;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  padding: 7px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(59,130,246,.35);
+  background: rgba(59,130,246,.12);
+  font-weight: 900;
+  font-size: 12px;
+}
+
+/* ===========================
+   MODAL: ESCOLHER DIA ✅
+   =========================== */
+.day-modal{
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0,0,0,.60);
+  z-index: 9999;
+}
+
+.day-modal.is-open{ display:flex; }
+
+.day-modal-card{
+  width: min(520px, 96vw);
+  border-radius: 22px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: linear-gradient(180deg, rgba(20,20,22,.94), rgba(14,14,16,.90));
+  box-shadow: 0 18px 60px rgba(0,0,0,.55);
+  padding: 14px;
+}
+
+.day-modal-top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.day-modal-title{
+  margin:0;
+  font-size:18px;
+  font-weight: 900;
+}
+.day-modal-sub{
+  margin: 8px 0 0;
+  color: rgba(233,238,246,.70);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.day-grid{
+  margin-top: 12px;
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 10px;
+}
+
+.day-btn{
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.05);
+  color: var(--txt);
+  padding: 12px 12px;
+  border-radius: 16px;
+  cursor: pointer;
+  font-weight: 900;
+}
+.day-btn:active{ transform: translateY(1px); }
+
+/* ===== Modal (Divisão automática): estados e variações ===== */
+.day-grid-compact{
+  grid-template-columns: repeat(2, minmax(0,1fr));
+}
+
+.day-btn.is-selected{
+  border-color: rgba(59,130,246,.55);
+  background: rgba(59,130,246,.18);
+}
+
+.day-btn.is-disabled{
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.day-modal-bottom-split{
+  justify-content: space-between;
+  gap: 10px;
+}
+.day-modal-bottom-split .btn{
+  flex: 1;
+}
+
+
+.day-modal-bottom{
+  margin-top: 12px;
+  display:flex;
+  justify-content:flex-end;
+}
+
+@media (max-width: 520px){
+  .day-grid{ grid-template-columns: 1fr; }
+}
+
+.saved-day{ display:inline-flex; gap:6px; align-items:center; padding:2px 8px; border-radius:999px; border:1px solid rgba(59,130,246,.28); background: rgba(59,130,246,.10); }
+
+
+
+/* ===========================
+   FIX MOBILE: muitos treinos salvos ✅
+   - mantém a estrutura
+   - evita a caixa "sticky" ficar gigante e esconder a biblioteca
+   =========================== */
+@media (max-width: 720px){
+  /* o problema é a lista crescer demais dentro do sticky */
+  .builder-saved-list{
+    max-height: 42vh;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding-right: 6px;
+  }
+}
+@media (max-width: 420px){
+  .builder-saved-list{ max-height: 36vh; }
+}
 
